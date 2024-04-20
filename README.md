@@ -19,6 +19,10 @@ The table above presents the performance of MixLoRA and compares these results w
 
 You can download the weights of MixLoRA fine-tuned with [meta-llama/Llama-2-7b-hf](https://huggingface.co/meta-llama/Llama-2-7b-hf) and [AlpacaCleaned](https://github.com/gururise/AlpacaDataCleaned) dataset on Hugging Face: [scukdde-llm/alpaca-mixlora-7b](https://huggingface.co/scukdde-llm/alpaca-mixlora-7b). Currently, only m-LoRA supports the inference of MixLoRA.
 
+## Paper
+
+[Li D, Ma Y, Wang N, et al. MixLoRA: Resource-Efficient Model with Mix-of-Experts Architecture for Enhanced LoRA Performance[J]. GitHub, 2024.](./MixLoRA.pdf)
+
 ## Use MixLoRA
 
 MixLoRA is build upon the m-LoRA framework. Please use MixLoRA with [m-LoRA](https://github.com/scukdde-llm/mlora).
