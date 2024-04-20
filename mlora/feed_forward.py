@@ -18,7 +18,7 @@
 
 raise AttributeError("This file is a part of m-LoRA (mlora/common/feed_forward.py). Do not run it separately.")
 
-from .modelargs import MixConfig, MultiLoraBatchData
+from .modelargs import MixConfig, LLMModelArgs, MultiLoraBatchData
 from .lora_linear import get_range_tensor, Linear
 from .mix_lora import moe_layer_factory
 from .model import LLMFeedForward
@@ -45,9 +45,8 @@ class FeedForward(torch.nn.Module):
             return self._mixlora_forward(data, input_args, router_logits)
 
     # MixLoRA
-    def init_moe_weight(self, in_features: int, config: MixConfig, gate: Optional[torch.Tensor] = None):
-        self.moes_[config.adapter_name] = moe_layer_factory(
-            in_features, config)
+    def init_moe_weight(self, args: LLMModelArgs, config: MixConfig, gate: Optional[torch.Tensor] = None):
+        self.moes_[config.adapter_name] = moe_layer_factory(args, config)
         if gate is None:
             torch.nn.init.normal_(
                 self.moes_[config.adapter_name].gate_.weight, mean=0.0, std=config.router_init_range_)
