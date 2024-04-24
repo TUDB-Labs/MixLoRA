@@ -21,7 +21,18 @@ You can download the weights of MixLoRA fine-tuned with [meta-llama/Llama-2-7b-h
 
 ## Paper
 
-[Li D, Ma Y, Wang N, et al. MixLoRA: Resource-Efficient Model with Mix-of-Experts Architecture for Enhanced LoRA Performance[J]. GitHub, 2024.](./MixLoRA.pdf)
+[Li D, Ma Y, Wang N, et al. MixLoRA: Enhancing Large Language Models Fine-Tuning with LoRA based Mixture of Experts.[J]. arXiv preprint arXiv:2404.15159, 2024.](https://arxiv.org/abs/2404.15159)
+
+```
+@misc{li2024mixlora,
+      title={MixLoRA: Enhancing Large Language Models Fine-Tuning with LoRA based Mixture of Experts}, 
+      author={Dengchun Li and Yingzi Ma and Naizheng Wang and Zhiyuan Cheng and Lei Duan and Jie Zuo and Cal Yang and Mingjie Tang},
+      year={2024},
+      eprint={2404.15159},
+      archivePrefix={arXiv},
+      primaryClass={cs.CL}
+}
+```
 
 ## Use MixLoRA
 
