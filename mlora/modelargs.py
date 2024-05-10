@@ -53,6 +53,7 @@ class LLMModelArgs:
     device_: str = ""
     dim_: int = 4096
     multiple_of_: int = 256
+    intermediate_: int = 11008
     n_heads_: int = 32
     n_kv_heads_: int = 32
     n_layers_: int = 32
@@ -92,14 +93,15 @@ class MultiLoraBatchData:
     lora_batch_data_config_: List[LoraBatchDataConfig] = None
 
     batch_tokens_: List[Tokens] = None
-    attention_masks_: List[Tokens] = None
+    batch_labels_: List[Labels] = None
+    attention_masks_: List[Masks] = None
 
-    gradient_checkpoint_: bool = True
-    inference_seq_pos_: int = -1
+    output_router_logits_: bool = True
 
-    @property
-    def inference_mode_(self) -> bool:
-        return self.inference_seq_pos_ >= 0
+    gradient_checkpoint_: str = "none"
+    efficient_operator_: bool = True
+    inference_mode_: bool = False
+    diagonal_pos_: int = 1
 
 
 @dataclass
@@ -200,6 +202,8 @@ class MixConfig(LoraConfig):
     router_aux_loss_coef_: float = None
     router_init_range_: float = None
     routing_strategy_: str = None
+    jitter_noise_: float = None
+    router_loss_: bool = True
     num_experts_: int = None
     act_fn_: str = None
     # mixtral config
@@ -207,7 +211,6 @@ class MixConfig(LoraConfig):
     # switch transformers config
     router_z_loss_coef_: float = None
     expert_capacity_: int = None
-    jitter_noise_: float = None
     ffn_dropout_: float = None
 
     def check(self) -> "MixConfig":
@@ -220,6 +223,9 @@ class MixConfig(LoraConfig):
                           float) and self.router_init_range_ >= 0
         assert isinstance(self.routing_strategy_,
                           str) and self.routing_strategy_ in available_routing_strategies
+        assert isinstance(self.jitter_noise_,
+                          float) and self.jitter_noise_ >= 0
+        assert isinstance(self.router_loss_, bool)
         assert isinstance(self.num_experts_, int) and self.num_experts_ > 0
         assert self.act_fn_ is None or (isinstance(
             self.act_fn_, str) and self.act_fn_ in ACT2FN)
@@ -230,8 +236,6 @@ class MixConfig(LoraConfig):
                               float) and self.router_z_loss_coef_ >= 0
             assert isinstance(self.expert_capacity_,
                               int) and self.expert_capacity_ > 0
-            assert isinstance(self.jitter_noise_,
-                              float) and self.jitter_noise_ >= 0
             assert isinstance(self.ffn_dropout_,
                               float) and self.ffn_dropout_ >= 0
 
@@ -247,6 +251,8 @@ class MixConfig(LoraConfig):
             "router_aux_loss_coef", 0.001)  # for training
         self.router_init_range_ = config.get("router_init_range", 0.02)
         self.routing_strategy_ = config["routing_strategy"]
+        self.jitter_noise_ = config.get("jitter_noise", 0.0)
+        self.router_loss_ = config.get("router_loss", True)
         self.num_experts_ = config["num_experts"]
         # silu for mixtral or gelu_new for switch transformers
         # left blank to automatically use the original act_fn of FFN
@@ -259,7 +265,6 @@ class MixConfig(LoraConfig):
             # expert_capacity = (max_sequence_length / num_experts) * capacity_factor
             # common values of capacity_factor: 1.0, 1.25, 2.0
             self.expert_capacity_ = config.get("expert_capacity", 64)
-            self.jitter_noise_ = config.get("jitter_noise", 0.0)
             self.ffn_dropout_ = config.get("ffn_dropout", 0.0)
 
         return self

@@ -79,8 +79,8 @@ MixLoRA have two routing strategies: top-k routing (like *Mixtral*) and top-1 sw
   "routing_strategy": "mixtral",
   "router_init_range": 0.02,
   "num_experts": 8,
-  "act_fn": "silu",
   "top_k": 2,
+  "router_loss": true,
   "router_aux_loss_coef": 0.01,
   ...
 }
@@ -93,15 +93,17 @@ MixLoRA have two routing strategies: top-k routing (like *Mixtral*) and top-1 sw
   "routing_strategy": "switch",
   "router_init_range": 0.02,
   "num_experts": 8,
-  "act_fn": "gelu_new",
   "expert_capacity": 32,
-  "jitter_noise": 0.1,
-  "ffn_dropout": 0.1,
+  "router_loss": true,
   "router_aux_loss_coef": 0.01,
   "router_z_loss_coef": 0.01,
   ...
 }
 ```
+expert_capacity = (max_sequence_length / num_experts) * capacity_factor
+
+common values of capacity_factor: 1.0, 1.25, 2.0
+
 You can add these items into training configurations to enable the MixLoRA architecture.
 
 If you want to control the lora settings of experts separately, just add `"expert_lora"` block to the config:
@@ -150,11 +152,11 @@ If MixLoRA has been useful for your work, please consider citing it using the ap
   title = {MixLoRA: Enhancing Large Language Models Fine-Tuning with LoRA based Mixture of Experts},
   year = {2024},
   publisher = {GitHub},
-  howpublished = {\url{https://github.com/mikecovlee/mixlora}},
+  howpublished = {\url{https://github.com/scukdde-llm/mlora}},
 }
 
 @misc{alpaca-mixlora-7b,
-  author = {Dengchun, Li and Yingzi, Ma and Naizheng, Wang and Lei, Duan and Jie, Zuo and Mingjie, Tang},
+  author = {Dengchun, Li and Yingzi, Ma and Naizheng, Wang and Zhiyuan, Cheng and Lei, Duan and Jie, Zuo and Mingjie, Tang},
   title = {MixLoRA LoRA MoE adapter based on AlpacaCleaned dataset and LLaMA-2-7B base model},
   year = {2024},
   publisher = {HuggingFace Hub},
