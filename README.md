@@ -1,42 +1,84 @@
-# MixLoRA: Resource-Efficient Model with Mix-of-Experts Architecture for Enhanced LoRA Performance
+# MixLoRA: Enhancing Large Language Models Fine-Tuning with LoRA-based Mixture of Experts
 
 <div align="left"><img src="./assets/MixLoRA.png" width=60%"></div>
 
-Large Language Models (LLMs) have showcased exceptional performance across a wide array of Natural Language Processing (NLP) tasks. Fine-tuning techniques are commonly utilized to tailor pre-trained models to specific applications. While methods like LoRA have effectively tackled GPU memory constraints during fine-tuning, their applicability is often restricted. On the other hand, Mix-of-Expert (MoE) models, such as Mixtral 8x7B, demonstrate remarkable performance while maintaining a reduced parameter count. However, the resource requirements of these models pose challenges, particularly for consumer-grade GPUs.
+Fine-tuning Large Language Models (LLMs) is a common practice to adapt pre-trained models for specific applications. While methods like LoRA have effectively addressed GPU memory constraints during fine-tuning, their performance often falls short, especially in multi-task scenarios. In contrast, Mixture-of-Expert (MoE) models, such as Mixtral 8x7B, demonstrate remarkable performance in multi-task learning scenarios while maintaining a reduced parameter count. However, the resource requirements of these MoEs remain challenging, particularly for consumer-grade GPUs with less than 24GB memory. To tackle these challenges, we propose MixLoRA, an approach to construct a resource-efficient sparse MoE model based on LoRA. The figure above shows the architecture of the MixLoRA transformer block. MixLoRA inserts multiple LoRA-based experts within the feed-forward network block of a frozen pre-trained dense model and employs a commonly used top-k router. Unlike other LoRA-based MoE methods, MixLoRA enhances model performance by utilizing independent attention-layer LoRA adapters. Additionally, an auxiliary load balance loss is employed to address the imbalance problem of the router. Our evaluations show that MixLoRA improves about 9% accuracy compared to state-of-the-art PEFT methods in multi-task learning scenarios.
 
-To address this challenge, we propose MixLoRA, an innovative approach aimed at constructing a resource-efficient sparse MoE model. MixLoRA inserts multiple LoRA-based experts within the feed-forward network block of a frozen pre-trained dense model through fine-tuning, employing a top-k routing strategy. Unlike other LoRA MoE methods, MixLoRA enhances model performance by utilizing independently configurable attention layer LoRA adapters, supporting LoRA and its variants for the construction of experts, and applying auxiliary load balance loss to address the imbalance problem of the router.
-
-In experiments, MixLoRA achieves commendable performance across all evaluation metrics in both single-task and multi-task learning scenarios. Implemented within the m-LoRA framework, MixLoRA enables parallel fine-tuning, inference, and evaluation of multiple mixture-of-experts models on a single 24GB consumer-grade GPU without quantization, thereby reducing GPU memory consumption by 41% and latency during the training process by 17%.
-
-| PEFT Method | # Params (%) | ARC-e | ARC-c | BoolQ | OBQA | PIQA | AVG. |
-|-------------|--------------|-------|-------|-------|------|------|------|
-| LoRA        | 2.6%         | 73.8  | 50.9  | 62.2  | 80.4 | 69.9 | 67.4 |
-| DoRA        | 2.6%         | 76.5  | 59.8  | 71.7  | 80.6 | 78.8 | 73.5 |
-| **MixLoRA** | 2.6%         | 76.5  | 58.1  | 73.8  | 84.4 | 82.6 | 75.1 |
-| **MixDoRA** | 2.6%         | 78.3  | 59.6  | 74.2  | 84.4 | 83.6 | 76.0 |
+| PEFT Method | # Params (%) | ARC-e | ARC-c | BoolQ | OBQA | PIQA | SIQA | HellaS | WinoG | AVG. |
+|-------------|--------------|-------|-------|-------|------|------|------|--------|-------|------|
+| LoRA        | 2.9%         | 73.8  | 50.9  | 62.2  | 80.4 | 82.1 | 69.9 | 88.4   | 66.8  | 71.8 |
+| DoRA        | 2.9%         | 76.5  | 59.8  | 71.7  | 80.6 | 82.7 | 74.1 | 89.6   | 67.3  | 75.3 |
+| **MixLoRA** | 2.9%         | 77.7  | 58.1  | 72.7  | 84.4 | 83.2 | 78.0 | 93.1   | 76.8  | **78.0** | 
+| **MixDoRA** | 2.9%         | 77.5  | 58.2  | 72.6  | 80.9 | 82.2 | 80.4 | 90.6   | 83.4  | **78.2** |
 
 The table above presents the performance of MixLoRA and compares these results with outcomes obtained by employing LoRA and DoRA for fine-tuning. The results demonstrate that the language model with MixLoRA achieves commendable performance across all evaluation methods. All methods are fine-tuned and evaluated with [meta-llama/Llama-2-7b-hf](https://huggingface.co/meta-llama/Llama-2-7b-hf) on m-LoRA, with all metrics reported as accuracy.
 
-You can download the weights of MixLoRA fine-tuned with [meta-llama/Llama-2-7b-hf](https://huggingface.co/meta-llama/Llama-2-7b-hf) and [AlpacaCleaned](https://github.com/gururise/AlpacaDataCleaned) dataset on Hugging Face: [scukdde-llm/alpaca-mixlora-7b](https://huggingface.co/scukdde-llm/alpaca-mixlora-7b). Currently, only m-LoRA supports the inference of MixLoRA.
+<div align="left"><img src="./assets/Optimization.png" width=60%"></div>
 
-## Paper
+We also propose a new high-throughput framework to alleviate the computation and memory bottlenecks during the training and inference of MoE models. The figure above shows the comparison of the forward propagation processes: (a) the process in a vanilla MixLoRA MoE block; (b) the optimized process that shares computation results of $W_1$ and $W_3$ to reduce computational complexity. This framework reduces GPU memory consumption by 40% and token computation latency by 30% during both training and inference.
 
-[Li D, Ma Y, Wang N, et al. MixLoRA: Enhancing Large Language Models Fine-Tuning with LoRA based Mixture of Experts.[J]. arXiv preprint arXiv:2404.15159, 2024.](https://arxiv.org/abs/2404.15159)
+You can check the full experimental results, including other pre-trained models such as Gemma 2B, LLaMA3 8B, and LLaMA2 13B, and detailed performance metrics in our preprint paper: [Li D, Ma Y, Wang N, et al. MixLoRA: Enhancing Large Language Models Fine-Tuning with LoRA based Mixture of Experts[J]. arXiv preprint arXiv:2404.15159, 2024.](https://arxiv.org/abs/2404.15159)
 
-```
-@misc{li2024mixlora,
-      title={MixLoRA: Enhancing Large Language Models Fine-Tuning with LoRA based Mixture of Experts}, 
-      author={Dengchun Li and Yingzi Ma and Naizheng Wang and Zhiyuan Cheng and Lei Duan and Jie Zuo and Cal Yang and Mingjie Tang},
-      year={2024},
-      eprint={2404.15159},
-      archivePrefix={arXiv},
-      primaryClass={cs.CL}
-}
-```
+You can download the weights of MixLoRA fine-tuned with [meta-llama/Llama-2-7b-hf](https://huggingface.co/meta-llama/Llama-2-7b-hf) and the [AlpacaCleaned](https://github.com/gururise/AlpacaDataCleaned) dataset on Hugging Face: [scukdde-llm/alpaca-mixlora-7b](https://huggingface.co/scukdde-llm/alpaca-mixlora-7b). Currently, only m-LoRA supports the inference of MixLoRA.
 
 ## Use MixLoRA
 
-MixLoRA is build upon the m-LoRA framework. Please use MixLoRA with [m-LoRA](https://github.com/scukdde-llm/mlora).
+MixLoRA is built upon the m-LoRA framework. Please use MixLoRA with [m-LoRA](https://github.com/scukdde-llm/mlora). This repository only provides the core codes associated with MixLoRA in the m-LoRA repository and cannot run it separately.
+
+## Reproduction Instruction
+
+You can reproduce our evaluation results with [m-LoRA v0.3.2](https://github.com/scukdde-llm/mlora/tree/0.3.2) using the following scripts.
+
+### Environments
+
+We conducted our experiments with the following environment:
++ Systems with x86-64 CPUs
++ NVIDIA GPUs: RTX 3090@24GB, RTX A5000@24GB, RTX 4090D@24GB, RTX 4090@24GB, RTX A6000@48GB (for 8B and 13B models)
+
+### Cloning and Checkout m-LoRA
+
+```bash
+git clone https://github.com/scukdde-llm/mlora
+git checkout 0.3.2
+```
+
+### Single-Task
+
+```bash
+python ./launch.py gen --template mixlora --tasks <arc-c/arc-e/boolq/obqa/piqa/siqa/hellaswag/winogrande>
+python ./launch.py run --base_model <Path to Your Base Model>
+```
+
+The program will automatically perform training and evaluation. The results will be printed upon completion.
+
+### Multi-Task
+
+```bash
+python ./launch.py gen --template mixlora --tasks "arc-c;arc-e;boolq;obqa;piqa" --multi_task True --adapter_name mixlora
+python ./launch.py run --base_model <Path to Your Base Model>
+```
+
+The program will automatically perform training and evaluation. The results will be printed upon completion.
+
+### Performance Metrics
+
+We referenced this post from the [PyTorch Discussion Website](https://discuss.pytorch.org/t/how-to-measure-time-in-pytorch/26964) to measure the time of training and inference.
+
+```python
+start = torch.cuda.Event(enable_timing=True)
+end = torch.cuda.Event(enable_timing=True)
+
+start.record()
+z = x + y
+end.record()
+
+# Waits for everything to finish running
+torch.cuda.synchronize()
+
+print(start.elapsed_time(end))
+```
+
+For m-LoRA, we injected these codes into the `train` function in `mlora/trainer.py` to measure the time elapsed, and we computed the token computation latency by dividing these times by the number of tokens in one batch. The peak GPU memory usage was collected using [`torch.cuda.max_memory_allocated` API](https://pytorch.org/docs/stable/generated/torch.cuda.max_memory_allocated.html). Every metric was collected by running the experiment 10 times separately and calculating the average value.
 
 ## Configuration of MixLoRA
 
@@ -147,16 +189,17 @@ python generate.py \
 ## Citation
 If MixLoRA has been useful for your work, please consider citing it using the appropriate citation format for your publication.
 ```bibtex
-@misc{MixLoRA,
-  author = {Dengchun, Li and Yingzi, Ma and Naizheng, Wang and Zhiyuan, Cheng and Lei, Duan and Jie, Zuo and Mingjie, Tang},
-  title = {MixLoRA: Enhancing Large Language Models Fine-Tuning with LoRA based Mixture of Experts},
-  year = {2024},
-  publisher = {GitHub},
-  howpublished = {\url{https://github.com/scukdde-llm/mlora}},
+@misc{li2024mixlora,
+      title={MixLoRA: Enhancing Large Language Models Fine-Tuning with LoRA-based Mixture of Experts}, 
+      author={Dengchun Li and Yingzi Ma and Naizheng Wang and Zhengmao Ye and Zhiyuan Cheng and Yinghao Tang and Yan Zhang and Lei Duan and Jie Zuo and Cal Yang and Mingjie Tang},
+      year={2024},
+      eprint={2404.15159},
+      archivePrefix={arXiv},
+      primaryClass={cs.CL}
 }
 
 @misc{alpaca-mixlora-7b,
-  author = {Dengchun, Li and Yingzi, Ma and Naizheng, Wang and Zhiyuan, Cheng and Lei, Duan and Jie, Zuo and Mingjie, Tang},
+  author = {Dengchun Li and Yingzi Ma and Naizheng Wang and Zhengmao Ye and Zhiyuan Cheng and Yinghao Tang and Yan Zhang and Lei Duan and Jie Zuo and Cal Yang and Mingjie Tang},
   title = {MixLoRA LoRA MoE adapter based on AlpacaCleaned dataset and LLaMA-2-7B base model},
   year = {2024},
   publisher = {HuggingFace Hub},
