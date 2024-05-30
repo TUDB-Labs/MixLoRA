@@ -29,6 +29,8 @@ MixLoRA is built upon the m-LoRA framework. Please use MixLoRA with [m-LoRA](htt
 
 You can reproduce our evaluation results with [m-LoRA v0.3.2](https://github.com/scukdde-llm/mlora/tree/0.3.2) using the following scripts.
 
+Please note that, *Single-Task* setup refers to training and evaluating PEFT modules for each task, while *Multi-Task* setup refers to training on mixed tasks, followed by separate evaluation.
+
 ### Environments
 
 We conducted our experiments with the following environment:
