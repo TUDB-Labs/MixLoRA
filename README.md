@@ -1,9 +1,11 @@
 # MixLoRA: Enhancing Large Language Models Fine-Tuning with LoRA-based Mixture of Experts
 
+[![arXiv](https://img.shields.io/badge/arXiv-2404.15159-b31b1b.svg)](https://arxiv.org/abs/2404.15159)
+[![](https://img.shields.io/github/stars/TUDB-Labs/MixLoRA?style=flat&logo=GitHub)](https://github.com/TUDB-Labs/MixLoRA/stargazers)
+[![](https://img.shields.io/badge/dynamic/json?label=citations&query=citationCount&url=https://api.semanticscholar.org/graph/v1/paper/ebcf108f8bc42140721ff02b6727b0a291362957?fields=citationCount)](https://www.semanticscholar.org/paper/ebcf108f8bc42140721ff02b6727b0a291362957)
 [![PWC](https://img.shields.io/endpoint.svg?url=https://paperswithcode.com/badge/mixlora-enhancing-large-language-models-fine/question-answering-on-social-iqa)](https://paperswithcode.com/sota/question-answering-on-social-iqa?p=mixlora-enhancing-large-language-models-fine)
 [![PWC](https://img.shields.io/endpoint.svg?url=https://paperswithcode.com/badge/mixlora-enhancing-large-language-models-fine/question-answering-on-piqa)](https://paperswithcode.com/sota/question-answering-on-piqa?p=mixlora-enhancing-large-language-models-fine)
-[![PWC](https://img.shields.io/endpoint.svg?url=https://paperswithcode.com/badge/mixlora-enhancing-large-language-models-fine/common-sense-reasoning-on-arc-easy)](https://paperswithcode.com/sota/common-sense-reasoning-on-arc-easy?p=mixlora-enhancing-large-language-models-fine)
-[![PWC](https://img.shields.io/endpoint.svg?url=https://paperswithcode.com/badge/mixlora-enhancing-large-language-models-fine/sentence-completion-on-hellaswag)](https://paperswithcode.com/sota/sentence-completion-on-hellaswag?p=mixlora-enhancing-large-language-models-fine)
+[![](https://img.shields.io/github/license/TUDB-Labs/MixLoRA)](http://www.apache.org/licenses/LICENSE-2.0)
 
 <div align="left"><img src="./assets/MixLoRA.png" width=60%"></div>
 
