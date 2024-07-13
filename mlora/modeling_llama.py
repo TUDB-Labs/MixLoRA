@@ -14,7 +14,7 @@
 #
 # Copyright (C) 2023-2024 All Rights Reserved.
 #
-# Github:  https://github.com/scukdde-llm/mlora
+# Github:  https://github.com/mikecovlee/mLoRA
 
 raise AttributeError("This file is a part of m-LoRA (mlora/models/modeling_llama.py). Do not run it separately.")
 

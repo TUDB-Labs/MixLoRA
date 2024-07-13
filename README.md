@@ -26,15 +26,15 @@ We also propose a new high-throughput framework to alleviate the computation and
 
 You can check the full experimental results, including other pre-trained models such as Gemma 2B, LLaMA3 8B, and LLaMA2 13B, and detailed performance metrics in our preprint paper: [Li D, Ma Y, Wang N, et al. MixLoRA: Enhancing Large Language Models Fine-Tuning with LoRA based Mixture of Experts[J]. arXiv preprint arXiv:2404.15159, 2024.](https://arxiv.org/abs/2404.15159)
 
-You can download the weights of MixLoRA fine-tuned with [meta-llama/Llama-2-7b-hf](https://huggingface.co/meta-llama/Llama-2-7b-hf) and the [AlpacaCleaned](https://github.com/gururise/AlpacaDataCleaned) dataset on Hugging Face: [scukdde-llm/alpaca-mixlora-7b](https://huggingface.co/scukdde-llm/alpaca-mixlora-7b). Currently, only m-LoRA supports the inference of MixLoRA.
+You can download the weights of MixLoRA fine-tuned with [meta-llama/Llama-2-7b-hf](https://huggingface.co/meta-llama/Llama-2-7b-hf) and the [AlpacaCleaned](https://github.com/gururise/AlpacaDataCleaned) dataset on Hugging Face: [TUDB-Labs/alpaca-mixlora-7b](https://huggingface.co/TUDB-Labs/alpaca-mixlora-7b). Currently, only m-LoRA supports the inference of MixLoRA.
 
 ## Use MixLoRA
 
-MixLoRA is built upon the m-LoRA framework. Please use MixLoRA with [m-LoRA](https://github.com/scukdde-llm/mlora). This repository only provides the core codes associated with MixLoRA in the m-LoRA repository and cannot run it separately.
+MixLoRA is built upon the m-LoRA framework. Please use MixLoRA with [m-LoRA](https://github.com/mikecovlee/mLoRA). This repository only provides the core codes associated with MixLoRA in the m-LoRA repository and cannot run it separately.
 
 ## Reproduction Instruction
 
-You can reproduce our evaluation results with [m-LoRA v0.3.2](https://github.com/scukdde-llm/mlora/tree/0.3.2) using the following scripts.
+You can reproduce our evaluation results with [m-LoRA v0.3.2](https://github.com/mikecovlee/mLoRA/tree/0.3.2) using the following scripts.
 
 Please note that, *Single-Task* setup refers to training and evaluating PEFT modules for each task, while *Multi-Task* setup refers to training on mixed tasks, followed by separate evaluation.
 
@@ -47,7 +47,7 @@ We conducted our experiments with the following environment:
 ### Cloning and Checkout m-LoRA
 
 ```bash
-git clone https://github.com/scukdde-llm/mlora
+git clone https://github.com/mikecovlee/mLoRA
 git checkout 0.3.2
 ```
 
@@ -184,13 +184,13 @@ Please note that once the MixLoRA model is created, the number of experts in the
 # Run WebUI of Inference
 python inference.py \
   --base_model meta-llama/Llama-2-7b-hf \
-  --lora_weights scukdde-llm/alpaca-mixlora-7b \
+  --lora_weights TUDB-Labs/alpaca-mixlora-7b \
   --template template/alpaca.json
 
 # Simply Generate
 python generate.py \
   --base_model meta-llama/Llama-2-7b-hf \
-  --lora_weights scukdde-llm/alpaca-mixlora-7b \
+  --lora_weights TUDB-Labs/alpaca-mixlora-7b \
   --template template/alpaca.json \
   --instruction "What is m-LoRA?"
 ```
@@ -212,7 +212,7 @@ If MixLoRA has been useful for your work, please consider citing it using the ap
   title = {MixLoRA LoRA MoE adapter based on AlpacaCleaned dataset and LLaMA-2-7B base model},
   year = {2024},
   publisher = {HuggingFace Hub},
-  howpublished = {\url{https://huggingface.co/scukdde-llm/alpaca-mixlora-7b}},
+  howpublished = {\url{https://huggingface.co/TUDB-Labs/alpaca-mixlora-7b}},
 }
 ```
 
