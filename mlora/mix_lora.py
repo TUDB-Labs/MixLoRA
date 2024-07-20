@@ -1,4 +1,4 @@
-# This file is a part of m-LoRA (mlora/common/mix_lora.py)
+# This file is a part of m-LoRA v0.4.2 (mlora/common/mix_lora.py)
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -25,7 +25,7 @@ import torch.nn.functional as F
 from transformers.activations import ACT2FN
 
 from .model import LLMFeedForward
-from .modelargs import LLMModelArgs, MixConfig
+from .modelargs import LLMModelConfig, MixConfig
 
 
 def _mixtral_load_balancing_loss_func(
@@ -129,6 +129,8 @@ def _mixtral_slice_tensor(
     last_value: torch.Tensor = None,
 ):
     if last_value is None:
+        # for macOS debugging, please uncomment this line
+        # assert data.dtype in (torch.float, torch.int, torch.bool)
         return data[None, slice].reshape(-1, data.shape[-1]).to(dtype)
     else:
         return last_value
@@ -148,7 +150,7 @@ def _mixtral_compatible_forward(
 
 
 class MixtralSparseMoe(torch.nn.Module):
-    def __init__(self, args: LLMModelArgs, config: MixConfig) -> None:
+    def __init__(self, args: LLMModelConfig, config: MixConfig) -> None:
         super().__init__()
 
         self.adapter_name_: str = config.adapter_name
@@ -344,7 +346,7 @@ class SwitchRouterLoss(torch.nn.Module):
 
 
 class SwitchSparseMoe(torch.nn.Module):
-    def __init__(self, args: LLMModelArgs, config: MixConfig) -> None:
+    def __init__(self, args: LLMModelConfig, config: MixConfig) -> None:
         super().__init__()
 
         self.adapter_name_: str = config.adapter_name
@@ -457,7 +459,7 @@ def router_loss_factory(config: MixConfig) -> torch.nn.Module:
 moe_layer_dict = {"mixtral": MixtralSparseMoe, "switch": SwitchSparseMoe}
 
 
-def moe_layer_factory(args: LLMModelArgs, config: MixConfig) -> torch.nn.Module:
+def moe_layer_factory(args: LLMModelConfig, config: MixConfig) -> torch.nn.Module:
     if config.routing_strategy_ not in router_loss_dict:
         raise ValueError(f"Unknown routing strategy {config.routing_strategy_}")
     return moe_layer_dict[config.routing_strategy_](args, config)

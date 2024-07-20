@@ -15,7 +15,7 @@ Fine-tuning Large Language Models (LLMs) is a common practice to adapt pre-train
 |-------------|--------------|-------|-------|-------|------|------|------|--------|-------|------|
 | LoRA        | 2.9%         | 73.8  | 50.9  | 62.2  | 80.4 | 82.1 | 69.9 | 88.4   | 66.8  | 71.8 |
 | DoRA        | 2.9%         | 76.5  | 59.8  | 71.7  | 80.6 | 82.7 | 74.1 | 89.6   | 67.3  | 75.3 |
-| **MixLoRA** | 2.9%         | 77.7  | 58.1  | 72.7  | 84.4 | 83.2 | 78.0 | 93.1   | 76.8  | **78.0** | 
+| **MixLoRA** | 2.9%         | 77.7  | 58.1  | 72.7  | 81.6 | 83.2 | 78.0 | 93.1   | 76.8  | **77.6** | 
 | **MixDoRA** | 2.9%         | 77.5  | 58.2  | 72.6  | 80.9 | 82.2 | 80.4 | 90.6   | 83.4  | **78.2** |
 
 The table above presents the performance of MixLoRA and compares these results with outcomes obtained by employing LoRA and DoRA for fine-tuning. The results demonstrate that the language model with MixLoRA achieves commendable performance across all evaluation methods. All methods are fine-tuned and evaluated with [meta-llama/Llama-2-7b-hf](https://huggingface.co/meta-llama/Llama-2-7b-hf) on m-LoRA, with all metrics reported as accuracy.
@@ -34,7 +34,7 @@ MixLoRA is built upon the m-LoRA framework. Please use MixLoRA with [m-LoRA](htt
 
 ## Reproduction Instruction
 
-You can reproduce our evaluation results with [m-LoRA v0.3.2](https://github.com/mikecovlee/mLoRA/tree/0.3.2) using the following scripts.
+You can reproduce our evaluation results with [m-LoRA v0.3.2](https://github.com/mikecovlee/mLoRA/tree/0.3.2) using the following scripts. You can also use the [latest release of m-LoRA](https://github.com/mikecovlee/mLoRA/releases/latest) for more features such as new pre-trained model support and bugfix.
 
 Please note that, *Single-Task* setup refers to training and evaluating PEFT modules for each task, while *Multi-Task* setup refers to training on mixed tasks, followed by separate evaluation.
 
@@ -48,6 +48,7 @@ We conducted our experiments with the following environment:
 
 ```bash
 git clone https://github.com/mikecovlee/mLoRA
+# Optional, just for consistency
 git checkout 0.3.2
 ```
 

@@ -1,4 +1,4 @@
-# This file is a part of m-LoRA (mlora/common/modelargs.py)
+# This file is a part of m-LoRA v0.4.2 (mlora/common/modelargs.py)
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -39,19 +39,11 @@ class DataClass:
 
 
 @dataclass
-class TokenizerArgs:
-    vocab_size_: int = -1
-    bos_id_: int = -1
-    eos_id_: int = -1
-    pad_id_: int = -1
-
-
-@dataclass
-class LLMModelArgs:
+class LLMModelConfig:
     name_or_path_: str = ""
     device_: str = ""
     dim_: int = 4096
-    multiple_of_: int = 256
+    head_dim_: int = 256
     intermediate_: int = 11008
     n_heads_: int = 32
     n_kv_heads_: int = 32
@@ -99,14 +91,17 @@ class LLMModelInput:
     gradient_checkpoint_: str = "none"
     efficient_operator_: bool = True
     inference_mode_: bool = False
-    diagonal_pos_: int = 1
 
 
 @dataclass
-class LoraConfig:
+class AdapterConfig:
     adapter_name: str = ""
     task_name: str = "casual"
     device: str = get_backend().default_device_name()
+
+
+@dataclass
+class LoraConfig(AdapterConfig):
     # Weight-Decomposed Low-Rank Adaptation
     use_dora_: bool = False
     # Rank-Stabilized LoRA
