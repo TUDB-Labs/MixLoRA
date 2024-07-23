@@ -1,13 +1,12 @@
 # MixLoRA: Enhancing Large Language Models Fine-Tuning with LoRA-based Mixture of Experts
 
 [![arXiv](https://img.shields.io/badge/arXiv-2404.15159-b31b1b.svg)](https://arxiv.org/abs/2404.15159)
-[![](https://img.shields.io/github/stars/TUDB-Labs/MixLoRA?style=flat&logo=GitHub)](https://github.com/TUDB-Labs/MixLoRA/stargazers)
 [![](https://img.shields.io/badge/dynamic/json?label=citations&query=citationCount&url=https://api.semanticscholar.org/graph/v1/paper/ebcf108f8bc42140721ff02b6727b0a291362957?fields=citationCount)](https://www.semanticscholar.org/paper/ebcf108f8bc42140721ff02b6727b0a291362957)
-[![PWC](https://img.shields.io/endpoint.svg?url=https://paperswithcode.com/badge/mixlora-enhancing-large-language-models-fine/question-answering-on-social-iqa)](https://paperswithcode.com/sota/question-answering-on-social-iqa?p=mixlora-enhancing-large-language-models-fine)
-[![PWC](https://img.shields.io/endpoint.svg?url=https://paperswithcode.com/badge/mixlora-enhancing-large-language-models-fine/question-answering-on-piqa)](https://paperswithcode.com/sota/question-answering-on-piqa?p=mixlora-enhancing-large-language-models-fine)
+[![](https://img.shields.io/github/stars/TUDB-Labs/MixLoRA?style=flat&logo=GitHub)](https://github.com/TUDB-Labs/MixLoRA/stargazers)
+[![](https://img.shields.io/pypi/v/mixlora?logo=pypi)](https://pypi.org/project/mixlora/)
 [![](https://img.shields.io/github/license/TUDB-Labs/MixLoRA)](http://www.apache.org/licenses/LICENSE-2.0)
 
-<div align="left"><img src="./assets/MixLoRA.png" width=60%"></div>
+<div align="left"><img src="https://raw.githubusercontent.com/TUDB-Labs/MixLoRA/main/assets/MixLoRA.png" width=60%"></div>
 
 Fine-tuning Large Language Models (LLMs) is a common practice to adapt pre-trained models for specific applications. While methods like LoRA have effectively addressed GPU memory constraints during fine-tuning, their performance often falls short, especially in multi-task scenarios. In contrast, Mixture-of-Expert (MoE) models, such as Mixtral 8x7B, demonstrate remarkable performance in multi-task learning scenarios while maintaining a reduced parameter count. However, the resource requirements of these MoEs remain challenging, particularly for consumer-grade GPUs with less than 24GB memory. To tackle these challenges, we propose MixLoRA, an approach to construct a resource-efficient sparse MoE model based on LoRA. The figure above shows the architecture of the MixLoRA transformer block. MixLoRA inserts multiple LoRA-based experts within the feed-forward network block of a frozen pre-trained dense model and employs a commonly used top-k router. Unlike other LoRA-based MoE methods, MixLoRA enhances model performance by utilizing independent attention-layer LoRA adapters. Additionally, an auxiliary load balance loss is employed to address the imbalance problem of the router. Our evaluations show that MixLoRA improves about 9% accuracy compared to state-of-the-art PEFT methods in multi-task learning scenarios.
 
@@ -20,7 +19,7 @@ Fine-tuning Large Language Models (LLMs) is a common practice to adapt pre-train
 
 The table above presents the performance of MixLoRA and compares these results with outcomes obtained by employing LoRA and DoRA for fine-tuning. The results demonstrate that the language model with MixLoRA achieves commendable performance across all evaluation methods. All methods are fine-tuned and evaluated with [meta-llama/Llama-2-7b-hf](https://huggingface.co/meta-llama/Llama-2-7b-hf) on m-LoRA, with all metrics reported as accuracy.
 
-<div align="left"><img src="./assets/Optimization.png" width=60%"></div>
+<div align="left"><img src="https://raw.githubusercontent.com/TUDB-Labs/MixLoRA/main/assets/Optimization.png" width=60%"></div>
 
 We also propose a new high-throughput framework to alleviate the computation and memory bottlenecks during the training and inference of MoE models. The figure above shows the comparison of the forward propagation processes: (a) the process in a vanilla MixLoRA MoE block; (b) the optimized process that shares computation results of $W_1$ and $W_3$ to reduce computational complexity. This framework reduces GPU memory consumption by 40% and token computation latency by 30% during both training and inference.
 
@@ -136,7 +135,7 @@ Compared with LoRA, MixLoRA have some additional configurations.
   "expand_side": "right"
 }
 ```
-This is an example of LoRA training configuration. You can find instructions at [README.md](./README.md).
+This is an example of LoRA training configuration.
 
 MixLoRA have two routing strategies: top-k routing (like *Mixtral*) and top-1 switch routing (like *Switch Transformers*), can be configured with `"routing_strategy": "mixtral"` or `"routing_strategy": "switch"`.
 
