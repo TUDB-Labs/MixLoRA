@@ -2,14 +2,16 @@ import copy
 from dataclasses import dataclass
 from typing import Dict, List
 
+import torch
 from transformers.activations import ACT2FN
 
 
 @dataclass
 class AdapterConfig:
-    adapter_name: str = ""
-    task_name: str = "casual"
-    device: str = ""
+    adapter_name_: str = None
+    hidden_size_: int = None
+    model_type_: str = None
+    dtype_: torch.dtype = None
 
 
 @dataclass
@@ -189,5 +191,4 @@ class MixLoraConfig(LoraConfig):
         else:
             config = copy.deepcopy(self.expert_config_)
         config.adapter_name = f"moe.{self.adapter_name}.experts.{expert_idx}"
-        config.device = self.device
         return config

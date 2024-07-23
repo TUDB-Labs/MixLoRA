@@ -12,7 +12,7 @@ if is_bitsandbytes_available():
 else:
     from .utils import Linear8bitLt, Linear4bit
 
-from typing import Dict, Tuple
+from typing import Dict, Optional, Tuple
 
 
 def dequantize_bnb_weight(weight: torch.nn.Parameter, state=None):
@@ -102,6 +102,7 @@ class Lora(nn.Module):
 
         self.base_layer_ = base_layer
         self.device_ = torch.device(device)
+        self.dtype_ = config.dtype_
 
         self.initializer_ = config.lora_init_
         self.r_ = config.lora_r_
@@ -121,23 +122,23 @@ class Lora(nn.Module):
             self.in_features_,
             self.r_,
             bias=False,
-            dtype=torch.float32,
+            dtype=self.dtype_,
             device=self.device_,
         )
         self.lora_b_ = nn.Linear(
             self.r_,
             self.out_features_,
             bias=False,
-            dtype=torch.float32,
+            dtype=self.dtype_,
             device=self.device_,
         )
 
         self.use_dora_: bool = config.use_dora_
         self.magnitude_vector_: nn.Parameter = None
 
-    def _get_weight_norm(self, dtype: torch.dtype = torch.float32) -> torch.Tensor:
+    def _get_weight_norm(self) -> torch.Tensor:
         # calculate L2 norm of weight matrix, column-wise
-        weight = dequantize_module_weight(self.base_layer_).to(dtype)
+        weight = dequantize_module_weight(self.base_layer_).to(self.dtype_)
         lora_weight = self.lora_b_.weight @ self.lora_a_.weight
         weight = weight + self.scaling_ * lora_weight
         weight_norm = torch.linalg.norm(weight, dim=1).to(weight.dtype)
@@ -183,7 +184,7 @@ class Lora(nn.Module):
         self, residual: torch.Tensor, hidden_states: torch.Tensor
     ) -> torch.Tensor:
         result_lora = (
-            self.lora_b_(self.lora_a_(self.dropout_(hidden_states.to(torch.float32))))
+            self.lora_b_(self.lora_a_(self.dropout_(hidden_states.to(self.dtype_))))
             * self.scaling_
         )
         if self.use_dora_:
@@ -193,7 +194,10 @@ class Lora(nn.Module):
 
 
 def init_lora_weight(
-    base_layer: nn.Module, lora_config: LoraConfig, lora_tensor=(None, None)
+    base_layer: nn.Module,
+    lora_config: LoraConfig,
+    lora_tensor=(None, None),
+    device: Optional[str] = None,
 ) -> Lora:
     if not isinstance(base_layer, nn.Linear):
         assert isinstance(base_layer, Linear8bitLt) or isinstance(
@@ -212,7 +216,7 @@ def init_lora_weight(
         base_layer,
         (in_dim, out_dim),
         lora_config,
-        lora_config.device,
+        device if device is not None else base_layer.weight.device,
     )
 
     lora_layer.reset_parameters(lora_tensor)

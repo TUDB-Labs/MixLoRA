@@ -11,10 +11,12 @@ def main(
     tokenizer = AutoTokenizer.from_pretrained(base_model)
     model = AutoModelForCausalLM.from_pretrained(
         base_model,
-        torch_dtype=torch.bfloat16,
+        torch_dtype=torch.float16,
         device_map=device,
     )
-    MixLoraModel.from_pretrained(model, lora_weights)
+    model = MixLoraModel.from_pretrained(
+        model, lora_weights, device=device, dtype=torch.float16
+    )
     prompter = Prompter("alpaca")
     input_ids = tokenizer(
         prompter.generate_prompt(instruction), return_tensors="pt"
@@ -24,16 +26,12 @@ def main(
         outputs = model.generate(
             input_ids=input_ids,
             max_new_tokens=100,
-            do_sample=True,
-            top_p=1,
-            temperature=1,
         )
         output = tokenizer.batch_decode(
             outputs.detach().cpu().numpy(), skip_special_tokens=True
         )[0][len(instruction) :]
 
-        print(f"Prompt:\n{instruction}\n")
-        print(f"Generated:\n{prompter.get_response(output)}")
+        print(output)
 
 
 if __name__ == "__main__":

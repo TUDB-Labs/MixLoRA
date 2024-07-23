@@ -1,7 +1,7 @@
 import json
 import os
 from dataclasses import dataclass
-from typing import Any, Dict, Optional
+from typing import Dict, Optional
 
 import torch
 import torch.nn.functional as F
@@ -41,17 +41,16 @@ class MixLoraSparseMoe(torch.nn.Module):
         self,
         base_layer: torch.nn.Module,
         config: MixLoraConfig,
-        hidden_size: int,
-        model_type: str,
+        device: str,
     ) -> None:
         super().__init__()
 
-        self.dtype_: torch.dtype = torch.float32
+        self.dtype_: torch.dtype = config.dtype_
         self.gate_ = torch.nn.Linear(
-            hidden_size,
+            config.hidden_size_,
             config.num_experts_,
             bias=False,
-            device=config.device,
+            device=device,
             dtype=self.dtype_,
         )
         self.base_layer_: torch.nn.Module = base_layer
@@ -60,9 +59,9 @@ class MixLoraSparseMoe(torch.nn.Module):
         self.num_experts_: int = config.num_experts_
         self.topk_: int = config.top_k_
         self.jitter_noise_: float = config.jitter_noise_
-        if model_type not in _compatible_model_types:
+        if config.model_type_ not in _compatible_model_types:
             raise NotImplementedError()
-        self.forward_fn_ = getattr(self, _compatible_model_types[model_type])
+        self.forward_fn_ = getattr(self, _compatible_model_types[config.model_type_])
 
     def _llama_forward(
         self, expert_mask: torch.Tensor, hidden_states: torch.Tensor, input_dtype
@@ -196,7 +195,12 @@ def _inject_attn_module(
         setattr(
             self_attn,
             proj_name,
-            Linear(base_layer, init_lora_weight(base_layer, config, lora_weights)),
+            Linear(
+                base_layer,
+                init_lora_weight(
+                    base_layer, config, lora_weights, base_layer.weight.device
+                ),
+            ),
         )
 
 
@@ -205,9 +209,9 @@ def _inject_mlp_module(
     mlp: torch.nn.Module,
     config: MixLoraConfig,
     weights: Dict[str, torch.Tensor],
-    **moe_init_kwargs,
+    device: str,
 ):
-    moe_layer = MixLoraSparseMoe(mlp, config, **moe_init_kwargs)
+    moe_layer = MixLoraSparseMoe(mlp, config, device)
     mlp._mixlora_moe = moe_layer
     mlp.forward = moe_layer.forward
     gate_weight = weights[f"mixlora.layers.{layer_idx}.gate.weight"]
@@ -226,53 +230,66 @@ def _inject_mlp_module(
                 weights[f"{layer_prefix_name}.lora_B.weight"],
             )
             moe_layer.experts_[f"experts.{expert_idx}.{proj_name}"] = init_lora_weight(
-                base_layer, config, lora_weights
+                base_layer, config, lora_weights, base_layer.weight.device
             )
 
 
-def _inject_pretrained(
-    model: PreTrainedModel, config: MixLoraConfig, weights: Dict[str, torch.Tensor]
+def inject_pretrained(
+    model: PreTrainedModel,
+    config: MixLoraConfig,
+    weights: Dict[str, torch.Tensor],
+    device: str,
 ):
+    config.hidden_size_ = model.config.hidden_size
+    config.model_type_ = model.config.model_type
     model._mixlora_config = config
-    moe_init_kwargs = {
-        "hidden_size": model.config.hidden_size,
-        "model_type": model.config.model_type,
-    }
     for idx, layer in enumerate(model.model.layers):
         _inject_attn_module(idx, layer.self_attn, config, weights)
-        _inject_mlp_module(idx, layer.mlp, config, weights, **moe_init_kwargs)
+        _inject_mlp_module(idx, layer.mlp, config, weights, device)
+
+
+def load_adapter_weights(
+    name_or_path: str,
+    adapter_name: str,
+    device: str,
+    dtype: torch.dtype,
+):
+    if not os.path.exists(name_or_path):
+        name_or_path = snapshot_download(repo_id=name_or_path, repo_type="model")
+
+    with open(
+        name_or_path + os.sep + "adapter_config.json", "r", encoding="utf8"
+    ) as fp:
+        config = MixLoraConfig(adapter_name_=adapter_name, dtype_=dtype).from_config(
+            json.load(fp)
+        )
+
+    weights = torch.load(
+        name_or_path + os.sep + "adapter_model.bin", map_location=device
+    )
+
+    return config, weights
 
 
 @dataclass
 class MixLoraModel:
-    model: PreTrainedModel = None
-    config: MixLoraConfig = None
-
-    def forward(self, *args: Any, **kwargs: Any):
-        return self.model(*args, **kwargs)
-
     @staticmethod
     def from_pretrained(
         model: PreTrainedModel,
         name_or_path: str,
         adapter_name: str = "default",
         device: Optional[str] = None,
-    ) -> "MixLoraModel":
-        if not os.path.exists(name_or_path):
-            name_or_path = snapshot_download(repo_id=name_or_path, repo_type="model")
-
-        with open(
-            name_or_path + os.sep + "adapter_config.json", "r", encoding="utf8"
-        ) as fp:
-            lora_config = MixLoraConfig().from_config(json.load(fp))
-
-        lora_config.adapter_name = adapter_name
-        lora_config.device = device if device is not None else model.device
-
-        lora_weights = torch.load(
-            name_or_path + os.sep + "adapter_model.bin", map_location=device
+        dtype: torch.dtype = torch.float32,
+    ) -> PreTrainedModel:
+        if device is None:
+            device = model.device
+        config, weights = load_adapter_weights(
+            name_or_path,
+            adapter_name,
+            device,
+            dtype,
         )
 
-        _inject_pretrained(model, lora_config, lora_weights)
+        inject_pretrained(model, config, weights, device)
 
-        return MixLoraModel(model=model, config=lora_config)
+        return model
