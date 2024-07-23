@@ -3,6 +3,7 @@
 [![arXiv](https://img.shields.io/badge/arXiv-2404.15159-b31b1b.svg)](https://arxiv.org/abs/2404.15159)
 [![](https://img.shields.io/badge/dynamic/json?label=citations&query=citationCount&url=https://api.semanticscholar.org/graph/v1/paper/ebcf108f8bc42140721ff02b6727b0a291362957?fields=citationCount)](https://www.semanticscholar.org/paper/ebcf108f8bc42140721ff02b6727b0a291362957)
 [![](https://img.shields.io/github/stars/TUDB-Labs/MixLoRA?style=flat&logo=GitHub)](https://github.com/TUDB-Labs/MixLoRA/stargazers)
+[![](https://img.shields.io/github/v/release/TUDB-Labs/MixLoRA?logo=Github)](https://github.com/TUDB-Labs/MixLoRA/releases/latest)
 [![](https://img.shields.io/pypi/v/mixlora?logo=pypi)](https://pypi.org/project/mixlora/)
 [![](https://img.shields.io/github/license/TUDB-Labs/MixLoRA)](http://www.apache.org/licenses/LICENSE-2.0)
 
