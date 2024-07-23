@@ -32,6 +32,22 @@ You can download the weights of MixLoRA fine-tuned with [meta-llama/Llama-2-7b-h
 
 MixLoRA is built upon the m-LoRA framework. Please use MixLoRA with [m-LoRA](https://github.com/mikecovlee/mLoRA). This repository only provides the core codes associated with MixLoRA in the m-LoRA repository and cannot run it separately.
 
+We also provides the integrations of MixLoRA with HuggingFace Transformers for inference. To use it, you can install `mixlora` with following command:
+
+```bash
+pip3 install mixlora
+```
+
+Then you can load MixLoRA adapter into a pre-trained model with following codes:
+
+```python
+from transformers import AutoModelForCausalLM
+from mixlora import MixLoraModel
+
+model = AutoModelForCausalLM.from_pretrained(...)
+model = MixLoraModel.from_pretrained(model, name_or_path_to_the_adapter, ...)
+```
+
 ## Reproduction Instruction
 
 You can reproduce our evaluation results with [m-LoRA v0.3.2](https://github.com/mikecovlee/mLoRA/tree/0.3.2) using the following scripts. You can also use the [latest release of m-LoRA](https://github.com/mikecovlee/mLoRA/releases/latest) for more features such as new pre-trained model support and bugfix.
