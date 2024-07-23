@@ -1,0 +1,27 @@
+[build-system]
+requires = ["setuptools"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "mixlora"
+version = "0.1.0"
+description = "State-of-the-art Parameter-Efficient MoE Fine-tuning Method"
+readme = "README.md"
+requires-python = ">=3.8"
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: Apache Software License",
+    "Operating System :: OS Independent",
+]
+dependencies = [
+    "torch==2.3.1",
+    "transformers==4.42.4",
+    "huggingface_hub",
+]
+
+[project.urls]
+"Homepage" = "https://github.com/TUDB-Labs/MixLoRA"
+"Bug Tracker" = "https://github.com/TUDB-Labs/MixLoRA/issues"
+
+[tool.setuptools.packages.find]
+include = ["mixlora*"]
