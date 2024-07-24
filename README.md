@@ -26,11 +26,11 @@ We also propose a new high-throughput framework to alleviate the computation and
 
 You can check the full experimental results, including other pre-trained models such as Gemma 2B, LLaMA3 8B, and LLaMA2 13B, and detailed performance metrics in our preprint paper: [Li D, Ma Y, Wang N, et al. MixLoRA: Enhancing Large Language Models Fine-Tuning with LoRA based Mixture of Experts[J]. arXiv preprint arXiv:2404.15159, 2024.](https://arxiv.org/abs/2404.15159)
 
-You can download the weights of MixLoRA fine-tuned with [meta-llama/Llama-2-7b-hf](https://huggingface.co/meta-llama/Llama-2-7b-hf) and the [AlpacaCleaned](https://github.com/gururise/AlpacaDataCleaned) dataset on Hugging Face: [TUDB-Labs/alpaca-mixlora-7b](https://huggingface.co/TUDB-Labs/alpaca-mixlora-7b). Currently, only m-LoRA supports the inference of MixLoRA.
+You can download the weights of MixLoRA fine-tuned with [meta-llama/Llama-2-7b-hf](https://huggingface.co/meta-llama/Llama-2-7b-hf) and the [AlpacaCleaned](https://github.com/gururise/AlpacaDataCleaned) dataset on Hugging Face: [TUDB-Labs/alpaca-mixlora-7b](https://huggingface.co/TUDB-Labs/alpaca-mixlora-7b).
 
 ## Use MixLoRA
 
-MixLoRA is built upon the m-LoRA framework. Please use MixLoRA with [m-LoRA](https://github.com/mikecovlee/mLoRA). This repository only provides the core codes associated with MixLoRA in the m-LoRA repository and cannot run it separately.
+MixLoRA is built upon the m-LoRA framework. It is recommended to use MixLoRA with [m-LoRA](https://github.com/mikecovlee/mLoRA).
 
 We also provides the integrations of MixLoRA with HuggingFace Transformers for inference. To use it, you can install `mixlora` with following command:
 
@@ -116,7 +116,6 @@ Compared with LoRA, MixLoRA have some additional configurations.
   "lr": 1e-5,
   "batch_size": 16,
   "micro_batch_size": 2,
-  "test_batch_size": 64,
   "num_epochs": 3,
   "r": 8,
   "lora_alpha": 16,
@@ -126,14 +125,13 @@ Compared with LoRA, MixLoRA have some additional configurations.
       "k_proj": false,
       "v_proj": true,
       "o_proj": false,
-      "w1_proj": false,
-      "w2_proj": false,
-      "w3_proj": false
+      "gate_proj": true,
+      "down_proj": true,
+      "up_proj": true
   },
   "data": "yahma/alpaca-cleaned",
-  "prompt": "template/alpaca.json",
-  "group_by_length": false,
-  "expand_side": "right"
+  "prompt": "alpaca",
+  "group_by_length": false
 }
 ```
 This is an example of LoRA training configuration.
