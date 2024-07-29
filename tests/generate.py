@@ -29,7 +29,7 @@ def main(
         )
         output = tokenizer.batch_decode(
             outputs.detach().cpu().numpy(), skip_special_tokens=True
-        )[0][len(instruction) :]
+        )[0][input_ids.shape[-1] :]
 
         print(output)
 

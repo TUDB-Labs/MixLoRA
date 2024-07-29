@@ -33,6 +33,7 @@ _compatible_model_types = {
     "gemma2": "_llama_forward",
     "qwen2": "_llama_forward",
     "mistral": "_llama_forward",
+    "phi": "_phi_forward",
 }
 
 
@@ -110,6 +111,42 @@ class MixLoraSparseMoe(torch.nn.Module):
                 )
             else:
                 final_expert_states.append(self.base_layer_.down_proj(act_result))
+
+        return final_expert_states
+
+    def _phi_forward(
+        self, expert_mask: torch.Tensor, hidden_states: torch.Tensor, input_dtype
+    ):
+        common_fc1 = self.base_layer_.fc1(hidden_states.to(input_dtype)).to(
+            hidden_states.dtype
+        )
+        final_expert_states = []
+        for expert_idx in range(self.num_experts_):
+            _, top_x = torch.where(expert_mask[expert_idx])
+            lora_fc1: Optional[Lora] = self.experts_.get(
+                f"experts.{expert_idx}.fc1", None
+            )
+            lora_fc2: Optional[Lora] = self.experts_.get(
+                f"experts.{expert_idx}.fc2", None
+            )
+            if lora_fc1 is not None:
+                lora_data = _mixtral_slice_tensor(hidden_states, top_x, input_dtype)
+                act_result = self.act_(
+                    lora_fc1(
+                        _mixtral_slice_tensor(common_fc1, top_x, input_dtype), lora_data
+                    )
+                )
+            else:
+                act_result = self.act_(
+                    _mixtral_slice_tensor(common_fc1, top_x, input_dtype)
+                )
+
+            if lora_fc2 is not None:
+                final_expert_states.append(
+                    lora_fc2(self.base_layer_.fc2(act_result), act_result)
+                )
+            else:
+                final_expert_states.append(self.base_layer_.fc2(act_result))
 
         return final_expert_states
 
@@ -260,9 +297,9 @@ def load_adapter_weights(
     with open(
         name_or_path + os.sep + "adapter_config.json", "r", encoding="utf8"
     ) as fp:
-        config = MixLoraConfig(adapter_name_=adapter_name, dtype_=dtype).from_config(
-            json.load(fp)
-        )
+        config = MixLoraConfig.from_config(json.load(fp))
+        config.adapter_name_ = adapter_name
+        config.dtype_ = dtype
 
     weights = torch.load(
         name_or_path + os.sep + "adapter_model.bin", map_location=device
