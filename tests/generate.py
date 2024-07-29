@@ -31,7 +31,7 @@ def main(
             outputs.detach().cpu().numpy(), skip_special_tokens=True
         )[0][input_ids.shape[-1] :]
 
-        print(output)
+        print(f"\nOutput: {prompter.get_response(output)}\n")
 
 
 if __name__ == "__main__":
