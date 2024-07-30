@@ -46,6 +46,10 @@ def dummy_moe_layer(
     return moe_layer
 
 
+def dummy_test_shapes(hidden_size: int):
+    return [(2, 8, hidden_size), (1, 16, hidden_size), (4, 4, hidden_size)]
+
+
 hidden_size = 16
 
 
@@ -63,9 +67,11 @@ class MoeLayerTestCase(unittest.TestCase):
         moe_layer = dummy_moe_layer(
             "llama", mlp_layer, hidden_size, ["gate_proj", "down_proj", "up_proj"]
         )
-        input = torch.zeros((1, 8, hidden_size))
-        output: torch.Tensor = moe_layer(input)
-        self.assertEqual(output.shape, (1, 8, hidden_size))
+        for shape in dummy_test_shapes(hidden_size):
+            with self.subTest(f"test for shape = {shape}"):
+                input = torch.zeros(shape)
+                output: torch.Tensor = moe_layer(input)
+                self.assertEqual(output.shape, shape)
 
     def test_phi3_forward(self):
         mlp_layer = Phi3MLP(
@@ -80,9 +86,11 @@ class MoeLayerTestCase(unittest.TestCase):
         moe_layer = dummy_moe_layer(
             "phi3", mlp_layer, hidden_size, ["gate_up_proj", "down_proj"]
         )
-        input = torch.zeros((1, 8, hidden_size))
-        output: torch.Tensor = moe_layer(input)
-        self.assertEqual(output.shape, (1, 8, hidden_size))
+        for shape in dummy_test_shapes(hidden_size):
+            with self.subTest(f"test for shape = {shape}"):
+                input = torch.zeros(shape)
+                output: torch.Tensor = moe_layer(input)
+                self.assertEqual(output.shape, shape)
 
 
 if __name__ == "__main__":
