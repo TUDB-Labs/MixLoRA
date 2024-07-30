@@ -8,7 +8,9 @@ from mixlora.model import LoraLinear, MixLoraConfig, MixLoraSparseMoe
 class DummyPhi3MLP(torch.nn.Module):
     def __init__(self, hidden_size: int, intermediate_size: int):
         super().__init__()
-        self.gate_up_proj = torch.nn.Linear(hidden_size, 2*intermediate_size, bias=False)
+        self.gate_up_proj = torch.nn.Linear(
+            hidden_size, 2 * intermediate_size, bias=False
+        )
         self.down_proj = torch.nn.Linear(intermediate_size, hidden_size, bias=False)
         self.act_fn = torch.nn.SiLU()
 
@@ -20,12 +22,7 @@ config = MixLoraConfig.from_config(
         "r": 8,
         "lora_alpha": 16,
         "lora_dropout": 0.05,
-        "target_modules": [
-            "qkv_proj"
-            "o_proj",
-            "gate_up_proj",
-            "down_proj"
-        ],
+        "target_modules": ["qkv_proj" "o_proj", "gate_up_proj", "down_proj"],
         "routing_strategy": "mixtral",
         "num_experts": 8,
         "act_fn": "silu",
