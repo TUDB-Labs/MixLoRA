@@ -50,7 +50,7 @@ for proj_name in mlp_projections:
         )
 
 
-class LlamaTestCase(unittest.TestCase):
+class Phi3TestCase(unittest.TestCase):
     def test_forward(self):
         input = torch.zeros((1, 8, hidden_size))
         output: torch.Tensor = moe_layer(input)
