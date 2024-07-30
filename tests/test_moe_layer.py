@@ -73,7 +73,7 @@ class MoeLayerTestCase(unittest.TestCase):
                 input = torch.zeros(shape)
                 output: torch.Tensor = moe_layer(input)
                 self.assertEqual(output.shape, shape)
-    
+
     def test_phi_forward(self):
         mlp_layer = PhiMLP(
             PhiConfig(
@@ -84,9 +84,7 @@ class MoeLayerTestCase(unittest.TestCase):
                 num_attention_heads=2,
             )
         )
-        moe_layer = dummy_moe_layer(
-            "phi", mlp_layer, hidden_size, ["fc1", "fc2"]
-        )
+        moe_layer = dummy_moe_layer("phi", mlp_layer, hidden_size, ["fc1", "fc2"])
         for shape in dummy_test_shapes(hidden_size):
             with self.subTest(f"test for shape = {shape}"):
                 input = torch.zeros(shape)
