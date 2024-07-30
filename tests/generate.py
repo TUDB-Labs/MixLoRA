@@ -30,18 +30,20 @@ def main(
     tokenizer = AutoTokenizer.from_pretrained(config.base_model_name_or_path)
     prompter = Prompter(template)
 
-    input_ids = tokenizer(
-        prompter.generate_prompt(instruction), return_tensors="pt"
-    ).input_ids.to(device)
-    output = ""
+    input_kwargs = tokenizer(prompter.generate_prompt(instruction), return_tensors="pt")
+    # send tensors into correct device
+    for key, value in input_kwargs.items():
+        if isinstance(value, torch.Tensor):
+            input_kwargs[key] = value.to(device)
+
     with torch.inference_mode():
         outputs = model.generate(
-            input_ids=input_ids,
+            **input_kwargs,
             max_new_tokens=100,
         )
         output = tokenizer.batch_decode(
             outputs.detach().cpu().numpy(), skip_special_tokens=True
-        )[0][input_ids.shape[-1] :]
+        )[0][input_kwargs["input_ids"].shape[-1] :]
 
         print(f"\nOutput: {prompter.get_response(output)}\n")
 

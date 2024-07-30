@@ -203,6 +203,7 @@ class MixLoraSparseMoe(torch.nn.Module):
         input_dtype = hidden_states.dtype
         hidden_states = hidden_states.view(-1, hidden_dim).to(self.dtype_)
         # router_logits: (batch * sequence_length, n_experts)
+        self.gate_ = self.gate_.to(hidden_states)
         router_logits = F.linear(hidden_states, self.gate_)
 
         routing_weights = F.softmax(router_logits, dim=1, dtype=self.dtype_)
