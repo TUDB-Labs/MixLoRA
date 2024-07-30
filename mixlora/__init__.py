@@ -1,5 +1,9 @@
 from .config import MixLoraConfig
-from .model import MixLoraModel, MixLoraSparseMoe
+from .model import (
+    MixLoraModelForCausalLM,
+    inject_adapter_in_model,
+    load_adapter_weights,
+)
 from .prompter import Prompter
 from .utils import is_package_available
 
@@ -10,7 +14,8 @@ assert is_package_available(
 
 __all__ = [
     "MixLoraConfig",
-    "MixLoraModel",
-    "MixLoraSparseMoe",
+    "MixLoraModelForCausalLM",
+    "inject_adapter_in_model",
+    "load_adapter_weights",
     "Prompter",
 ]

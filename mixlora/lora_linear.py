@@ -2,17 +2,17 @@ import math
 
 import torch
 import torch.nn as nn
-from transformers.utils import is_bitsandbytes_available
 
 from .config import LoraConfig
+from .utils import is_package_available
 
-if is_bitsandbytes_available():
+if is_package_available("bitsandbytes"):
     import bitsandbytes as bnb
     from bitsandbytes.nn import Linear4bit, Linear8bitLt
 else:
     from .utils import Linear8bitLt, Linear4bit
 
-from typing import Dict, Optional, Tuple
+from typing import Tuple
 
 
 def dequantize_bnb_weight(weight: torch.nn.Parameter, state=None):
@@ -73,35 +73,31 @@ def dequantize_module_weight(module: torch.nn.Module) -> torch.nn.Parameter:
     return weight
 
 
-g_cached_range_tensor: Dict[torch.device, torch.Tensor] = {}
-# also max batch size
-g_max_range = 128
-
-
-def get_range_tensor(device: torch.device, batch_size: int = 1024):
-    global g_cached_range_tensor
-    global g_max_range
-    if device not in g_cached_range_tensor or batch_size > g_max_range:
-        g_max_range = g_max_range if g_max_range > batch_size else batch_size
-        g_cached_range_tensor[device] = torch.arange(
-            0, g_max_range, step=1, device=device
-        )
-    return g_cached_range_tensor[device]
-
-
-class Lora(nn.Module):
+class LoraLinear(nn.Module):
     def __init__(
         self,
         base_layer: nn.Module,
-        shape: Tuple[int, int],
         config: LoraConfig,
-        device: str,
+        weight: Tuple[torch.Tensor, torch.Tensor] = (None, None),
+        device: str = None,
     ):
-
         super().__init__()
 
+        if not isinstance(base_layer, nn.Linear):
+            assert isinstance(base_layer, Linear8bitLt) or isinstance(
+                base_layer, Linear4bit
+            ), f"Unsupported base layer type '{type(base_layer)}'."
+
+        if isinstance(base_layer, Linear4bit):
+            out_dim, in_dim = (
+                base_layer.out_features,
+                base_layer.in_features,
+            )
+        else:
+            out_dim, in_dim = base_layer.weight.shape
+
         self.base_layer_ = base_layer
-        self.device_ = torch.device(device)
+        self.device_ = torch.device(device) if device else base_layer.weight.device
         self.dtype_ = config.dtype_
 
         self.initializer_ = config.lora_init_
@@ -113,19 +109,20 @@ class Lora(nn.Module):
         else:
             self.scaling_ = self.alpha_ / self.r_
 
-        self.in_features_, self.out_features_ = shape
+        self.in_features_ = in_dim
+        self.out_features_ = out_dim
 
         assert config.lora_dropout_ > 0.0
         self.dropout_ = nn.Dropout(p=config.lora_dropout_)
 
-        self.lora_a_ = nn.Linear(
+        self.lora_A = nn.Linear(
             self.in_features_,
             self.r_,
             bias=False,
             dtype=self.dtype_,
             device=self.device_,
         )
-        self.lora_b_ = nn.Linear(
+        self.lora_B = nn.Linear(
             self.r_,
             self.out_features_,
             bias=False,
@@ -136,35 +133,38 @@ class Lora(nn.Module):
         self.use_dora_: bool = config.use_dora_
         self.magnitude_vector_: nn.Parameter = None
 
+        self.reset_parameters(weight)
+
     def _get_weight_norm(self) -> torch.Tensor:
         # calculate L2 norm of weight matrix, column-wise
         weight = dequantize_module_weight(self.base_layer_).to(self.dtype_)
-        lora_weight = self.lora_b_.weight @ self.lora_a_.weight
+        lora_weight = self.lora_B.weight @ self.lora_A.weight
         weight = weight + self.scaling_ * lora_weight
         weight_norm = torch.linalg.norm(weight, dim=1).to(weight.dtype)
         return weight_norm
 
-    def reset_parameters(self, lora_tensor=(None, None)) -> None:
+    def reset_parameters(
+        self, weight: Tuple[torch.Tensor, torch.Tensor] = (None, None)
+    ) -> None:
         # if the lora_tensor is not (None, None), use it to init the lora weight
-        assert isinstance(lora_tensor, Tuple)
-        assert len(lora_tensor) == 2
-        assert ((lora_tensor[0] is None) and (lora_tensor[1] is None)) or (
-            isinstance(lora_tensor[0], torch.Tensor)
-            and isinstance(lora_tensor[1], torch.Tensor)
+        assert isinstance(weight, Tuple)
+        assert len(weight) == 2
+        assert ((weight[0] is None) and (weight[1] is None)) or (
+            isinstance(weight[0], torch.Tensor) and isinstance(weight[1], torch.Tensor)
         )
 
-        if lora_tensor == (None, None):
+        if weight == (None, None):
             if self.initializer_ == "original":
-                nn.init.kaiming_uniform_(self.lora_a_.weight, a=math.sqrt(5))
+                nn.init.kaiming_uniform_(self.lora_A.weight, a=math.sqrt(5))
             elif self.initializer_ == "gaussian":
-                nn.init.normal_(self.lora_a_.weight, std=1 / self.r_)
+                nn.init.normal_(self.lora_A.weight, std=1 / self.r_)
             else:
                 raise ValueError(f"Unknown initialization {self.initializer_}")
-            nn.init.zeros_(self.lora_b_.weight)
+            nn.init.zeros_(self.lora_B.weight)
         else:
             with torch.no_grad():
-                self.lora_a_.weight.copy_(lora_tensor[0])
-                self.lora_b_.weight.copy_(lora_tensor[1])
+                self.lora_A.weight.copy_(weight[0])
+                self.lora_B.weight.copy_(weight[1])
 
         if self.use_dora_:
             self.magnitude_vector_ = nn.Parameter(
@@ -180,11 +180,11 @@ class Lora(nn.Module):
         mag_norm_scale = (self.magnitude_vector_ / weight_norm).view(1, -1)
         return mag_norm_scale * residual + mag_norm_scale * result_lora
 
-    def forward(
+    def lora_forward(
         self, residual: torch.Tensor, hidden_states: torch.Tensor
     ) -> torch.Tensor:
         result_lora = (
-            self.lora_b_(self.lora_a_(self.dropout_(hidden_states.to(self.dtype_))))
+            self.lora_B(self.lora_A(self.dropout_(hidden_states.to(self.dtype_))))
             * self.scaling_
         )
         if self.use_dora_:
@@ -192,44 +192,6 @@ class Lora(nn.Module):
         else:
             return residual + result_lora.to(residual.dtype)
 
-
-def init_lora_weight(
-    base_layer: nn.Module,
-    lora_config: LoraConfig,
-    lora_tensor=(None, None),
-    device: Optional[str] = None,
-) -> Lora:
-    if not isinstance(base_layer, nn.Linear):
-        assert isinstance(base_layer, Linear8bitLt) or isinstance(
-            base_layer, Linear4bit
-        ), f"Unsupported base layer type '{type(base_layer)}'."
-
-    if isinstance(base_layer, Linear4bit):
-        out_dim, in_dim = (
-            base_layer.out_features,
-            base_layer.in_features,
-        )
-    else:
-        out_dim, in_dim = base_layer.weight.shape
-
-    lora_layer = Lora(
-        base_layer,
-        (in_dim, out_dim),
-        lora_config,
-        device if device is not None else base_layer.weight.device,
-    )
-
-    lora_layer.reset_parameters(lora_tensor)
-
-    return lora_layer
-
-
-class Linear(nn.Module):
-    def __init__(self, base_layer: nn.Module, lora_layer: Lora) -> None:
-        super().__init__()
-        self.base_layer_ = base_layer
-        self.lora_layer_ = lora_layer
-
     def forward(self, hidden_states: torch.Tensor) -> torch.Tensor:
-        result = self.base_layer_(hidden_states)
-        return self.lora_layer_(result, hidden_states)
+        residual = self.base_layer_(hidden_states)
+        return self.lora_forward(residual, hidden_states)

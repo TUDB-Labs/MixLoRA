@@ -3,7 +3,16 @@ import importlib.util
 import logging
 from typing import Optional, Tuple, Union
 
+import torch
 from packaging import version
+
+
+def infer_device() -> str:
+    if torch.cuda.is_available():
+        return "cuda"
+    elif hasattr(torch.backends, "mps") and torch.backends.mps.is_available():
+        return "mps"
+    return "cpu"
 
 
 def is_package_available(
