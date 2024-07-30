@@ -57,11 +57,19 @@ for proj_name in mlp_projections:
         )
 
 
-class LlamaTestCase(unittest.TestCase):
-    def test_forward(self):
-        input = torch.zeros((1, 8, hidden_size))
-        output: torch.Tensor = moe_layer(input)
-        self.assertEqual(output.shape, (1, 8, hidden_size))
+class LlamaInputShapeTest(unittest.TestCase):
+    def test_forward_with_different_shape(self):
+        input_shapes = [
+            (2, 8, hidden_size),
+            (1, 16, hidden_size),
+            (4, 4, hidden_size)
+        ]
+        
+        for shape in input_shapes:
+            with self.subTest(shape=shape):
+                input = torch.zeros(shape)
+                output: torch.Tensor = moe_layer(input)
+                self.assertEqual(output.shape, shape)
 
 
 if __name__ == "__main__":
