@@ -42,11 +42,11 @@ pip3 install mixlora
 Then you can load MixLoRA adapter into a pre-trained model with following codes:
 
 ```python
-from transformers import AutoModelForCausalLM
-from mixlora import MixLoraModel
+from mixlora import MixLoraModelForCausalLM
+from transformers import AutoTokenizer
 
-model = AutoModelForCausalLM.from_pretrained(...)
-model = MixLoraModel.from_pretrained(model, name_or_path_to_the_adapter, ...)
+model, config = MixLoraModelForCausalLM.from_pretrained(name_or_path_to_the_adapter, ...)
+tokenizer = AutoTokenizer.from_pretrained(config.base_model_name_or_path)
 ```
 
 ## Reproduction Instruction
