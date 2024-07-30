@@ -5,6 +5,7 @@
 [![](https://img.shields.io/github/stars/TUDB-Labs/MixLoRA?style=flat&logo=GitHub)](https://github.com/TUDB-Labs/MixLoRA/stargazers)
 [![](https://img.shields.io/github/v/release/TUDB-Labs/MixLoRA?logo=Github)](https://github.com/TUDB-Labs/MixLoRA/releases/latest)
 [![](https://img.shields.io/pypi/v/mixlora?logo=pypi)](https://pypi.org/project/mixlora/)
+[![Test on Main](https://github.com/TUDB-Labs/MixLoRA/actions/workflows/python-test.yml/badge.svg)](https://github.com/TUDB-Labs/MixLoRA/actions/workflows/python-test.yml)
 [![](https://img.shields.io/github/license/TUDB-Labs/MixLoRA)](http://www.apache.org/licenses/LICENSE-2.0)
 
 <div align="left"><img src="https://raw.githubusercontent.com/TUDB-Labs/MixLoRA/main/assets/MixLoRA.png" width=60%"></div>
