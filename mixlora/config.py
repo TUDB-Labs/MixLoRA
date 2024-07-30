@@ -8,10 +8,44 @@ from transformers.activations import ACT2FN
 
 @dataclass
 class AdapterConfig:
+    base_model_: str = None
+    task_type_: str = None
+    peft_type_: str = None
     adapter_name_: str = None
-    hidden_size_: int = None
     model_type_: str = None
     dtype_: torch.dtype = None
+
+    @property
+    def base_model_name_or_path(self):
+        return self.base_model_
+
+    @property
+    def adapter_name(self):
+        return self.adapter_name_
+
+    def check(self) -> "AdapterConfig":
+        assert isinstance(self.base_model_, str)
+        assert isinstance(self.task_type_, str)
+        assert isinstance(self.peft_type_, str)
+
+        return self
+
+    @staticmethod
+    def from_config(config: Dict[str, any]) -> "AdapterConfig":
+        return AdapterConfig(
+            base_model_=config["base_model_name_or_path"],
+            task_type_=config["task_type"],
+            peft_type_=config["peft_type"],
+        )
+
+    def export(self) -> Dict[str, any]:
+        config = {}
+        config["bias"] = "none"
+        config["peft_type"] = self.peft_type_
+        config["task_type"] = self.task_type_
+        config["base_model_name_or_path"] = self.base_model_
+
+        return config
 
 
 lora_target_modules = {
@@ -53,6 +87,7 @@ class LoraConfig(AdapterConfig):
     target_modules_: Dict[str, bool] = None
 
     def check(self) -> "LoraConfig":
+        super().check()
         assert isinstance(self.use_dora_, bool)
         assert isinstance(self.use_rslora_, bool)
         assert isinstance(self.lora_init_, str) and self.lora_init_ in [
@@ -71,7 +106,7 @@ class LoraConfig(AdapterConfig):
 
     @staticmethod
     def from_config(config: Dict[str, any]) -> "LoraConfig":
-        lora_config = LoraConfig()
+        lora_config = LoraConfig(**AdapterConfig.from_config(config).__dict__)
         lora_config.use_dora_ = config.get("use_dora", False)
         lora_config.use_rslora_ = config.get("use_rslora", False)
         lora_config.lora_init_ = config.get("lora_init", "original")
@@ -93,13 +128,11 @@ class LoraConfig(AdapterConfig):
         return lora_config
 
     def export(self) -> Dict[str, any]:
-        config = {}
+        config = super().export()
         if self.use_dora_:
             config["use_dora"] = True
         if self.use_rslora_:
             config["use_rslora"] = True
-        config["bias"] = "none"
-        config["peft_type"] = "LORA"
         config["r"] = self.lora_r_
         config["lora_alpha"] = self.lora_alpha_
         config["lora_dropout"] = self.lora_dropout_
@@ -161,11 +194,11 @@ class MixLoraConfig(LoraConfig):
     @staticmethod
     def from_config(config: Dict[str, any]) -> "MixLoraConfig":
         lora_config = MixLoraConfig(**LoraConfig.from_config(config).__dict__)
+        lora_config.routing_strategy_ = config.get("routing_strategy", None)
         assert (
-            "peft_type" in config
-            and config["peft_type"] == "MIXLORA"
-            and "routing_strategy" in config
-            and config["routing_strategy"] == "mixtral"
+            lora_config.peft_type_ == "MIXLORA"
+            and lora_config.routing_strategy_ is not None
+            and lora_config.routing_strategy_ == "mixtral"
         ), "MixLoraConfig only supports MixLoRA models with 'mixtral' routing_strategy."
         if "expert_lora" in config:
             expert_config = copy.deepcopy(config)
@@ -174,7 +207,6 @@ class MixLoraConfig(LoraConfig):
         lora_config.router_aux_loss_coef_ = config.get(
             "router_aux_loss_coef", 0.001
         )  # for training
-        lora_config.routing_strategy_ = config["routing_strategy"]
         lora_config.router_loss_ = config.get("router_loss", True)
         lora_config.num_experts_ = config["num_experts"]
         # silu for mixtral or gelu_new for switch transformers
@@ -213,5 +245,4 @@ class MixLoraConfig(LoraConfig):
             config = copy.deepcopy(super())
         else:
             config = copy.deepcopy(self.expert_config_)
-        config.adapter_name = f"moe.{self.adapter_name}.experts.{expert_idx}"
         return config

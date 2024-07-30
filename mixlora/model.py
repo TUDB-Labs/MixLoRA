@@ -1,19 +1,20 @@
 import json
 import os
 from dataclasses import dataclass
-from typing import Dict, Optional
+from typing import Dict, Optional, Tuple
 
 import torch
 import torch.nn.functional as F
 from huggingface_hub import snapshot_download
-from transformers import PreTrainedModel
+from transformers import AutoModelForCausalLM, PreTrainedModel
 from transformers.activations import ACT2FN
 
-from .adapter import Linear, Lora, init_lora_weight
 from .config import MixLoraConfig
+from .lora_linear import LoraLinear
+from .utils import infer_device
 
 
-def _mixtral_slice_tensor(
+def _slice_tensor(
     data: torch.Tensor,
     slice: torch.Tensor,
     dtype: torch.dtype,
@@ -43,21 +44,14 @@ class MixLoraSparseMoe(torch.nn.Module):
         self,
         base_layer: torch.nn.Module,
         config: MixLoraConfig,
-        device: str,
     ) -> None:
         super().__init__()
 
         self.dtype_: torch.dtype = config.dtype_
-        self.gate_ = torch.nn.Linear(
-            config.hidden_size_,
-            config.num_experts_,
-            bias=False,
-            device=device,
-            dtype=self.dtype_,
-        )
+        self.gate_: torch.Tensor = None
         self.base_layer_: torch.nn.Module = base_layer
-        self.experts_: Dict[str, Lora] = {}
-        self.act_ = ACT2FN[config.act_fn_]
+        self.experts_: Dict[str, LoraLinear] = {}
+        self.act_fn_ = ACT2FN[config.act_fn_]
         self.num_experts_: int = config.num_experts_
         self.topk_: int = config.top_k_
         self.jitter_noise_: float = config.jitter_noise_
@@ -66,7 +60,10 @@ class MixLoraSparseMoe(torch.nn.Module):
         self.forward_fn_ = getattr(self, _compatible_model_types[config.model_type_])
 
     def _llama_forward(
-        self, expert_mask: torch.Tensor, hidden_states: torch.Tensor, input_dtype
+        self,
+        expert_mask: torch.Tensor,
+        hidden_states: torch.Tensor,
+        input_dtype: torch.dtype,
     ):
         common_gate = self.base_layer_.gate_proj(hidden_states.to(input_dtype)).to(
             hidden_states.dtype
@@ -77,38 +74,40 @@ class MixLoraSparseMoe(torch.nn.Module):
         final_expert_states = []
         for expert_idx in range(self.num_experts_):
             _, top_x = torch.where(expert_mask[expert_idx])
-            lora_gate: Optional[Lora] = self.experts_.get(
+            lora_gate: Optional[LoraLinear] = self.experts_.get(
                 f"experts.{expert_idx}.gate_proj", None
             )
-            lora_down: Optional[Lora] = self.experts_.get(
+            lora_down: Optional[LoraLinear] = self.experts_.get(
                 f"experts.{expert_idx}.down_proj", None
             )
-            lora_up: Optional[Lora] = self.experts_.get(
+            lora_up: Optional[LoraLinear] = self.experts_.get(
                 f"experts.{expert_idx}.up_proj", None
             )
             if lora_gate is not None:
-                lora_data = _mixtral_slice_tensor(hidden_states, top_x, input_dtype)
-                gate_states = lora_gate(
-                    _mixtral_slice_tensor(common_gate, top_x, input_dtype), lora_data
+                lora_data = _slice_tensor(hidden_states, top_x, input_dtype)
+                gate_states = lora_gate.lora_forward(
+                    _slice_tensor(common_gate, top_x, input_dtype), lora_data
                 )
             else:
                 lora_data = None
-                gate_states = _mixtral_slice_tensor(common_gate, top_x, input_dtype)
+                gate_states = _slice_tensor(common_gate, top_x, input_dtype)
 
             if lora_up is not None:
-                lora_data = _mixtral_slice_tensor(hidden_states, top_x, input_dtype)
-                up_states = lora_up(
-                    _mixtral_slice_tensor(common_up, top_x, input_dtype), lora_data
+                lora_data = _slice_tensor(hidden_states, top_x, input_dtype)
+                up_states = lora_up.lora_forward(
+                    _slice_tensor(common_up, top_x, input_dtype), lora_data
                 )
             else:
                 lora_data = None
-                up_states = _mixtral_slice_tensor(common_up, top_x, input_dtype)
+                up_states = _slice_tensor(common_up, top_x, input_dtype)
 
-            act_result = self.act_(gate_states) * up_states
+            act_result = self.act_fn_(gate_states) * up_states
 
             if lora_down is not None:
                 final_expert_states.append(
-                    lora_down(self.base_layer_.down_proj(act_result), act_result)
+                    lora_down.lora_forward(
+                        self.base_layer_.down_proj(act_result), act_result
+                    )
                 )
             else:
                 final_expert_states.append(self.base_layer_.down_proj(act_result))
@@ -116,7 +115,10 @@ class MixLoraSparseMoe(torch.nn.Module):
         return final_expert_states
 
     def _phi_forward(
-        self, expert_mask: torch.Tensor, hidden_states: torch.Tensor, input_dtype
+        self,
+        expert_mask: torch.Tensor,
+        hidden_states: torch.Tensor,
+        input_dtype: torch.dtype,
     ):
         common_fc1 = self.base_layer_.fc1(hidden_states.to(input_dtype)).to(
             hidden_states.dtype
@@ -124,27 +126,25 @@ class MixLoraSparseMoe(torch.nn.Module):
         final_expert_states = []
         for expert_idx in range(self.num_experts_):
             _, top_x = torch.where(expert_mask[expert_idx])
-            lora_fc1: Optional[Lora] = self.experts_.get(
+            lora_fc1: Optional[LoraLinear] = self.experts_.get(
                 f"experts.{expert_idx}.fc1", None
             )
-            lora_fc2: Optional[Lora] = self.experts_.get(
+            lora_fc2: Optional[LoraLinear] = self.experts_.get(
                 f"experts.{expert_idx}.fc2", None
             )
             if lora_fc1 is not None:
-                lora_data = _mixtral_slice_tensor(hidden_states, top_x, input_dtype)
-                act_result = self.act_(
-                    lora_fc1(
-                        _mixtral_slice_tensor(common_fc1, top_x, input_dtype), lora_data
+                lora_data = _slice_tensor(hidden_states, top_x, input_dtype)
+                act_result = self.act_fn_(
+                    lora_fc1.lora_forward(
+                        _slice_tensor(common_fc1, top_x, input_dtype), lora_data
                     )
                 )
             else:
-                act_result = self.act_(
-                    _mixtral_slice_tensor(common_fc1, top_x, input_dtype)
-                )
+                act_result = self.act_fn_(_slice_tensor(common_fc1, top_x, input_dtype))
 
             if lora_fc2 is not None:
                 final_expert_states.append(
-                    lora_fc2(self.base_layer_.fc2(act_result), act_result)
+                    lora_fc2.lora_forward(self.base_layer_.fc2(act_result), act_result)
                 )
             else:
                 final_expert_states.append(self.base_layer_.fc2(act_result))
@@ -152,7 +152,10 @@ class MixLoraSparseMoe(torch.nn.Module):
         return final_expert_states
 
     def _phi3_forward(
-        self, expert_mask: torch.Tensor, hidden_states: torch.Tensor, input_dtype
+        self,
+        expert_mask: torch.Tensor,
+        hidden_states: torch.Tensor,
+        input_dtype: torch.dtype,
     ):
         common_gate_up = self.base_layer_.gate_up_proj(
             hidden_states.to(input_dtype)
@@ -160,28 +163,28 @@ class MixLoraSparseMoe(torch.nn.Module):
         final_expert_states = []
         for expert_idx in range(self.num_experts_):
             _, top_x = torch.where(expert_mask[expert_idx])
-            lora_gate_up: Optional[Lora] = self.experts_.get(
+            lora_gate_up: Optional[LoraLinear] = self.experts_.get(
                 f"experts.{expert_idx}.gate_up_proj", None
             )
-            lora_down: Optional[Lora] = self.experts_.get(
+            lora_down: Optional[LoraLinear] = self.experts_.get(
                 f"experts.{expert_idx}.down_proj", None
             )
             if lora_gate_up is not None:
-                gate_up_states = lora_gate_up(
-                    _mixtral_slice_tensor(common_gate_up, top_x, input_dtype),
-                    _mixtral_slice_tensor(hidden_states, top_x, input_dtype),
+                gate_up_states = lora_gate_up.lora_forward(
+                    _slice_tensor(common_gate_up, top_x, input_dtype),
+                    _slice_tensor(hidden_states, top_x, input_dtype),
                 )
             else:
-                gate_up_states = _mixtral_slice_tensor(
-                    common_gate_up, top_x, input_dtype
-                )
+                gate_up_states = _slice_tensor(common_gate_up, top_x, input_dtype)
 
             gate_states, up_states = gate_up_states.chunk(2, dim=-1)
-            act_result = up_states * self.act_(gate_states)
+            act_result = up_states * self.act_fn_(gate_states)
 
             if lora_down is not None:
                 final_expert_states.append(
-                    lora_down(self.base_layer_.down_proj(act_result), act_result)
+                    lora_down.lora_forward(
+                        self.base_layer_.down_proj(act_result), act_result
+                    )
                 )
             else:
                 final_expert_states.append(self.base_layer_.down_proj(act_result))
@@ -200,7 +203,7 @@ class MixLoraSparseMoe(torch.nn.Module):
         input_dtype = hidden_states.dtype
         hidden_states = hidden_states.view(-1, hidden_dim).to(self.dtype_)
         # router_logits: (batch * sequence_length, n_experts)
-        router_logits = self.gate_(hidden_states)
+        router_logits = F.linear(hidden_states, self.gate_)
 
         routing_weights = F.softmax(router_logits, dim=1, dtype=self.dtype_)
         routing_weights, selected_experts = torch.topk(
@@ -263,17 +266,15 @@ def _inject_attn_module(
             continue
         base_layer = getattr(self_attn, proj_name)
         layer_prefix_name = f"mixlora.layers.{layer_idx}.self_attn.{proj_name}"
-        lora_weights = (
-            weights[f"{layer_prefix_name}.lora_A.weight"],
-            weights[f"{layer_prefix_name}.lora_B.weight"],
-        )
         setattr(
             self_attn,
             proj_name,
-            Linear(
+            LoraLinear(
                 base_layer,
-                init_lora_weight(
-                    base_layer, config, lora_weights, base_layer.weight.device
+                config,
+                (
+                    weights[f"{layer_prefix_name}.lora_A.weight"],
+                    weights[f"{layer_prefix_name}.lora_B.weight"],
                 ),
             ),
         )
@@ -284,14 +285,18 @@ def _inject_mlp_module(
     mlp: torch.nn.Module,
     config: MixLoraConfig,
     weights: Dict[str, torch.Tensor],
-    device: str,
 ):
-    moe_layer = MixLoraSparseMoe(mlp, config, device)
-    mlp._mixlora_moe = moe_layer
+    moe_layer = MixLoraSparseMoe(mlp, config)
+    moe_layer.gate_ = weights[f"mixlora.layers.{layer_idx}.gate.weight"].to(
+        config.dtype_
+    )
+
+    if not hasattr(mlp, "mixlora_moes"):
+        mlp.mixlora_moes = {}
+
+    mlp.mixlora_moes[config.adapter_name_] = moe_layer
     mlp.forward = moe_layer.forward
-    gate_weight = weights[f"mixlora.layers.{layer_idx}.gate.weight"]
-    with torch.no_grad():
-        moe_layer.gate_.weight.copy_(gate_weight)
+
     for proj_name, inject in config.target_modules_.items():
         if not inject or not hasattr(mlp, proj_name):
             continue
@@ -300,37 +305,39 @@ def _inject_mlp_module(
             layer_prefix_name = (
                 f"mixlora.layers.{layer_idx}.experts.{expert_idx}.{proj_name}"
             )
-            lora_weights = (
-                weights[f"{layer_prefix_name}.lora_A.weight"],
-                weights[f"{layer_prefix_name}.lora_B.weight"],
-            )
-            moe_layer.experts_[f"experts.{expert_idx}.{proj_name}"] = init_lora_weight(
-                base_layer, config, lora_weights, base_layer.weight.device
+            moe_layer.experts_[f"experts.{expert_idx}.{proj_name}"] = LoraLinear(
+                base_layer,
+                config,
+                (
+                    weights[f"{layer_prefix_name}.lora_A.weight"],
+                    weights[f"{layer_prefix_name}.lora_B.weight"],
+                ),
             )
 
 
-def inject_pretrained(
+def inject_adapter_in_model(
     model: PreTrainedModel,
     config: MixLoraConfig,
     weights: Dict[str, torch.Tensor],
-    device: str,
 ):
-    config.hidden_size_ = model.config.hidden_size
     config.model_type_ = model.config.model_type
     model._mixlora_config = config
     for idx, layer in enumerate(model.model.layers):
         _inject_attn_module(idx, layer.self_attn, config, weights)
-        _inject_mlp_module(idx, layer.mlp, config, weights, device)
+        _inject_mlp_module(idx, layer.mlp, config, weights)
 
 
 def load_adapter_weights(
     name_or_path: str,
-    adapter_name: str,
-    device: str,
-    dtype: torch.dtype,
+    adapter_name: str = "default",
+    device: Optional[str] = None,
+    dtype: torch.dtype = torch.float32,
 ):
     if not os.path.exists(name_or_path):
         name_or_path = snapshot_download(repo_id=name_or_path, repo_type="model")
+
+    if device is None:
+        device = infer_device()
 
     with open(
         name_or_path + os.sep + "adapter_config.json", "r", encoding="utf8"
@@ -346,25 +353,29 @@ def load_adapter_weights(
     return config, weights
 
 
+_compatible_task_types = ["CAUSAL_LM", "QUESTION_ANS"]
+
+
 @dataclass
-class MixLoraModel:
+class MixLoraModelForCausalLM:
     @staticmethod
     def from_pretrained(
-        model: PreTrainedModel,
         name_or_path: str,
-        adapter_name: str = "default",
-        device: Optional[str] = None,
-        dtype: torch.dtype = torch.float32,
-    ) -> PreTrainedModel:
-        if device is None:
-            device = model.device
+        *model_args,
+        **kwargs,
+    ) -> Tuple[PreTrainedModel, MixLoraConfig]:
         config, weights = load_adapter_weights(
             name_or_path,
-            adapter_name,
-            device,
-            dtype,
+            adapter_name=kwargs.pop("adapter_name", "default"),
+            dtype=kwargs.get("torch_dtype", torch.float32),
         )
 
-        inject_pretrained(model, config, weights, device)
+        assert config.task_type_ in _compatible_task_types
 
-        return model
+        model = AutoModelForCausalLM.from_pretrained(
+            config.base_model_, *model_args, **kwargs
+        )
+
+        inject_adapter_in_model(model, config, weights)
+
+        return model, config
