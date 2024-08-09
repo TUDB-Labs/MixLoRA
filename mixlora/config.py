@@ -1,6 +1,6 @@
 import copy
 from dataclasses import dataclass
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Union
 
 import torch
 from transformers.activations import ACT2FN
@@ -145,7 +145,7 @@ class LoraConfig(AdapterConfig):
         return config
 
 
-available_routing_strategies = ["mixtral"]
+available_routing_strategies = ["mixlora"]
 
 
 @dataclass
@@ -159,8 +159,7 @@ class MixLoraConfig(LoraConfig):
     jitter_noise_: float = None
     router_loss_: bool = True
     num_experts_: int = None
-    act_fn_: Optional[str] = None
-    # mixtral config
+    act_fn_: Optional[Union[str, torch.nn.Module]] = None
     top_k_: int = None
 
     def check(self) -> "MixLoraConfig":
@@ -184,7 +183,7 @@ class MixLoraConfig(LoraConfig):
         assert self.act_fn_ is None or (
             isinstance(self.act_fn_, str) and self.act_fn_ in ACT2FN
         )
-        if self.routing_strategy_ == "mixtral":
+        if self.routing_strategy_ == "mixlora":
             assert isinstance(self.top_k_, int) and self.top_k_ > 0
         else:
             raise NotImplementedError()
@@ -198,8 +197,8 @@ class MixLoraConfig(LoraConfig):
         assert (
             lora_config.peft_type_ == "MIXLORA"
             and lora_config.routing_strategy_ is not None
-            and lora_config.routing_strategy_ == "mixtral"
-        ), "MixLoraConfig only supports MixLoRA models with 'mixtral' routing_strategy."
+            and lora_config.routing_strategy_ == "mixlora"
+        ), "MixLoraConfig only supports MixLoRA models with 'mixlora' routing_strategy."
         if "expert_lora" in config:
             expert_config = copy.deepcopy(config)
             expert_config.update(config["expert_lora"])
@@ -209,10 +208,9 @@ class MixLoraConfig(LoraConfig):
         )  # for training
         lora_config.router_loss_ = config.get("router_loss", True)
         lora_config.num_experts_ = config["num_experts"]
-        # silu for mixtral or gelu_new for switch transformers
         # left blank to automatically use the original act_fn of FFN
         lora_config.act_fn_ = config.get("act_fn", None)
-        if lora_config.routing_strategy_ == "mixtral":
+        if lora_config.routing_strategy_ == "mixlora":
             lora_config.router_init_range_ = config.get("router_init_range", 0.02)
             lora_config.jitter_noise_ = config.get("jitter_noise", 0.0)
             lora_config.top_k_ = config.get("top_k", 2)
@@ -231,9 +229,9 @@ class MixLoraConfig(LoraConfig):
             config["expert_lora"] = expert_config
         config["routing_strategy"] = self.routing_strategy_
         config["num_experts"] = self.num_experts_
-        if self.act_fn_ is not None:
+        if self.act_fn_ is not None and isinstance(self.act_fn_, str):
             config["act_fn"] = self.act_fn_
-        if self.routing_strategy_ == "mixtral":
+        if self.routing_strategy_ == "mixlora":
             config["top_k"] = self.top_k_
         else:
             raise NotImplementedError()

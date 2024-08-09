@@ -51,7 +51,11 @@ class MixLoraSparseMoe(torch.nn.Module):
         self.gate_: torch.Tensor = None
         self.base_layer_: torch.nn.Module = base_layer
         self.experts_: Dict[str, LoraLinear] = {}
-        self.act_fn_ = ACT2FN[config.act_fn_]
+        self.act_fn_ = (
+            ACT2FN[config.act_fn_]
+            if isinstance(config.act_fn_, str)
+            else config.act_fn_
+        )
         self.num_experts_: int = config.num_experts_
         self.topk_: int = config.top_k_
         self.jitter_noise_: float = config.jitter_noise_
@@ -288,7 +292,7 @@ def _inject_mlp_module(
     weights: Dict[str, torch.Tensor],
 ):
     moe_layer = MixLoraSparseMoe(mlp, config)
-    moe_layer.gate_ = weights[f"mixlora.layers.{layer_idx}.gate.weight"].to(
+    moe_layer.gate_ = weights[f"mixlora.layers.{layer_idx}.mlp.moe_gate.weight"].to(
         config.dtype_
     )
 
@@ -304,7 +308,7 @@ def _inject_mlp_module(
         base_layer = getattr(mlp, proj_name)
         for expert_idx in range(config.num_experts_):
             layer_prefix_name = (
-                f"mixlora.layers.{layer_idx}.experts.{expert_idx}.{proj_name}"
+                f"mixlora.layers.{layer_idx}.mlp.{proj_name}.experts.{expert_idx}"
             )
             moe_layer.experts_[f"experts.{expert_idx}.{proj_name}"] = LoraLinear(
                 base_layer,

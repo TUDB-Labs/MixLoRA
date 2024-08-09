@@ -137,13 +137,13 @@ Compared with LoRA, MixLoRA have some additional configurations.
 ```
 This is an example of LoRA training configuration.
 
-MixLoRA have two routing strategies: top-k routing (like *Mixtral*) and top-1 switch routing (like *Switch Transformers*), can be configured with `"routing_strategy": "mixtral"` or `"routing_strategy": "switch"`.
+MixLoRA have two routing strategies: top-k routing (like *Mixtral*) and top-1 switch routing (like *Switch Transformers*), can be configured with `"routing_strategy": "mixlora"` or `"routing_strategy": "mixlora-switch"`.
 
 **Top-k Routing**
 ```json
 {
   ...
-  "routing_strategy": "mixtral",
+  "routing_strategy": "mixlora",
   "router_init_range": 0.02,
   "num_experts": 8,
   "top_k": 2,
@@ -157,7 +157,7 @@ MixLoRA have two routing strategies: top-k routing (like *Mixtral*) and top-1 sw
 ```json
 {
   ...
-  "routing_strategy": "switch",
+  "routing_strategy": "mixlora-switch",
   "router_init_range": 0.02,
   "num_experts": 8,
   "expert_capacity": 32,
