@@ -23,7 +23,7 @@ def dummy_moe_layer(
             "lora_alpha": 16,
             "lora_dropout": 0.05,
             "target_modules": [],
-            "routing_strategy": "mixtral",
+            "routing_strategy": "mixlora",
             "num_experts": 8,
             "act_fn": "silu",
             "top_k": 2,
