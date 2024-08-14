@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "mixlora"
-version = "0.2.1"
+version = "0.2.2"
 description = "State-of-the-art Parameter-Efficient MoE Fine-tuning Method"
 readme = "README.md"
 requires-python = ">=3.8"
@@ -14,8 +14,8 @@ classifiers = [
     "Operating System :: OS Independent",
 ]
 dependencies = [
-    "torch>=2.3.0,<2.4.0",
-    "transformers>=4.43.0,<4.44.0",
+    "torch>=2.2.0",
+    "transformers>=4.43.0",
     "huggingface_hub",
 ]
 
