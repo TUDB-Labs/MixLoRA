@@ -351,7 +351,9 @@ def load_adapter_weights(
         config.adapter_name_ = adapter_name
         config.dtype_ = dtype
 
-    weights = torch.load(
+    config.check()
+
+    weights: Dict[str, torch.Tensor] = torch.load(
         name_or_path + os.sep + "adapter_model.bin", map_location=device
     )
 
