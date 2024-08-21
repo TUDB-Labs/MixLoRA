@@ -4,8 +4,8 @@ import os.path as osp
 from typing import Dict, Optional, Union
 
 prompt_templates = {
-    "mlora": {
-        "description": "Default Prompt Template Provided by m-LoRA",
+    "moe_peft": {
+        "description": "Default Prompt Template Provided by MoE-PEFT",
         "prompt_input": "### Instruction:\n{instruction}\n\n### Input:\n{input}\n\n### Output:\n",
         "prompt_no_input": "### Instruction:\n{instruction}\n\n### Output:\n",
         "response_split": "### Output:",
@@ -28,7 +28,7 @@ prompt_templates = {
 class Prompter:
     def __init__(self, template: Optional[Union[Dict, str]] = None):
         if template is None:
-            self.template = prompt_templates["mlora"]
+            self.template = prompt_templates["moe_peft"]
         elif isinstance(template, str):
             if osp.exists(template):
                 with open(template) as fp:
