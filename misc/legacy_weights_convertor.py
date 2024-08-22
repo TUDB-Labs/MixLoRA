@@ -52,7 +52,9 @@ def from_legacy(name_or_path: str, output_dir: Optional[str] = None):
     config.check()
 
     weights: Dict[str, torch.Tensor] = torch.load(
-        name_or_path + os.sep + "adapter_model.bin", map_location="cpu"
+        name_or_path + os.sep + "adapter_model.bin",
+        map_location="cpu",
+        weights_only=True,
     )
 
     model = AutoModelForCausalLM.from_pretrained(
