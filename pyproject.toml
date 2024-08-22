@@ -17,6 +17,8 @@ dependencies = [
     "torch>=2.2.0",
     "transformers>=4.43.0",
     "huggingface_hub",
+    "fire",
+    "accelerate"
 ]
 
 [project.urls]
